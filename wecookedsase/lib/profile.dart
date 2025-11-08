@@ -3,6 +3,9 @@ import 'package:velocity_x/velocity_x.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:forui/forui.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'auth.dart';
+import 'login.dart';
 
 // Profile Screen
 class ProfileScreen extends StatelessWidget {
@@ -10,6 +13,19 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: Auth().authStateChanges,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return _buildAuthenticatedProfile(context, snapshot.data!);
+        } else {
+          return _buildUnauthenticatedProfile(context);
+        }
+      },
+    );
+  }
+
+  Widget _buildAuthenticatedProfile(BuildContext context, User user) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -29,27 +45,25 @@ class ProfileScreen extends StatelessWidget {
         // Profile Avatar
         CircleAvatar(
           radius: 50.r,
-          backgroundImage: const NetworkImage('https://via.placeholder.com/150'),
+          backgroundImage: const NetworkImage('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSfqwLFS00jntBFK3NiZMvuJZs8Uo3q1zOZVZ4rWNuJUgbpHBUKQmEBvSUSoDKJydUu-3MB&s'),
         ),
         
         10.h.heightBox,
         
-        Text(
-          "John Doe",
+          Text(
+          user.displayName ?? "Anonymous User",
           style: GoogleFonts.poppins(
             fontSize: 22.sp,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
-          "Food Enthusiast",
+          user.email ?? "",
           style: TextStyle(
             color: Colors.grey.shade600,
             fontSize: 14.sp,
           ),
-        ),
-        
-        30.h.heightBox,
+        ),        30.h.heightBox,
         
         // Stats Section
         FCard(
@@ -58,9 +72,9 @@ class ProfileScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatCard("32", "Recipes"),
-                _buildStatCard("128", "Followers"),
-                _buildStatCard("256", "Following"),
+                _buildStatCard("15", "Plants"),
+                _buildStatCard("8", "Gardens"),
+                _buildStatCard("120", "Days Active"),
               ],
             ),
           ),
@@ -74,22 +88,22 @@ class ProfileScreen extends StatelessWidget {
           child: Column(
             children: [
               FButton(
-                label: const Text('Settings'),
-                prefix: const Icon(Icons.settings),
+                label: const Text('My Plants'),
+                prefix: const Icon(Icons.local_florist),
                 style: FButtonStyle.outline,
                 onPress: () {},
               ),
               SizedBox(height: 12.h),
               FButton(
-                label: const Text('Notifications'),
-                prefix: const Icon(Icons.notifications),
+                label: const Text('Garden Calendar'),
+                prefix: const Icon(Icons.calendar_month),
                 style: FButtonStyle.outline,
                 onPress: () {},
               ),
               SizedBox(height: 12.h),
               FButton(
-                label: const Text('Help & Support'),
-                prefix: const Icon(Icons.help),
+                label: const Text('Plant Care Tips'),
+                prefix: const Icon(Icons.lightbulb_outline),
                 style: FButtonStyle.outline,
                 onPress: () {},
               ),
@@ -98,13 +112,60 @@ class ProfileScreen extends StatelessWidget {
                 label: const Text('Logout'),
                 prefix: const Icon(Icons.logout),
                 style: FButtonStyle.outline,
-                onPress: () {},
+                onPress: () async {
+                  await Auth().signOut();
+                },
               ),
             ],
           ),
         ),
         SizedBox(height: 20.h),
       ]).scrollVertical(),
+    );
+  }
+
+  Widget _buildUnauthenticatedProfile(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Profile",
+          style: GoogleFonts.poppins(
+            fontSize: 24.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Center(
+        child: VStack([
+          const Icon(
+            Icons.account_circle,
+            size: 100,
+            color: Colors.deepPurple,
+          ),
+          20.h.heightBox,
+          Text(
+            "Sign in to view your profile",
+            style: GoogleFonts.poppins(
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          20.h.heightBox,
+          FButton(
+            label: const Text('Sign In'),
+            style: FButtonStyle.outline,
+            prefix: const Icon(Icons.login),
+            onPress: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+          ),
+        ]).p16(),
+      ),
     );
   }
 
