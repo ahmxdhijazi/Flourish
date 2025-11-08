@@ -1,4 +1,4 @@
-# 🌱 Flourish
+# Flourish
 
 Flourish is a social gardening app that helps you track, share, and celebrate your gardening journey. Connect with fellow plant enthusiasts, track your garden's growth, and learn from the community.
 
@@ -6,15 +6,15 @@ Flourish is a social gardening app that helps you track, share, and celebrate yo
 ![Firebase](https://img.shields.io/badge/Firebase-039BE5?style=for-the-badge&logo=Firebase&logoColor=white)
 ![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)
 
-## ✨ Features
+## Features
 
-- 📸 **Plant Recognition**: Take photos of your plants to identify them and track their growth
-- 🌿 **Garden Management**: Keep track of all your plants and their care requirements
-- 📊 **Progress Tracking**: Monitor your gardening journey with stats and achievements
-- 👥 **Social Features**: Connect with other gardeners, share tips, and celebrate successes
-- 🎯 **Gamification**: Earn points and unlock achievements as you grow your garden
+- **Plant Recognition**: Take photos of your plants to identify them and track their growth
+- **Garden Management**: Keep track of all your plants and their care requirements
+- **Progress Tracking**: Monitor your gardening journey with stats and achievements
+- **Social Features**: Connect with other gardeners, share tips, and celebrate successes
+- **Gamification**: Earn points and unlock achievements as you grow your garden
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -47,7 +47,7 @@ flutter pub get
 flutter run
 ```
 
-## 📱 App Structure
+## App Structure
 
 ```
 lib/
@@ -65,7 +65,7 @@ lib/
     └── ...              # Utility functions
 ```
 
-## 🔐 Firebase Setup
+## Firebase Setup
 
 ### Firestore Structure
 ```
