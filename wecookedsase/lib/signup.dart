@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:forui/forui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth.dart';
+import 'profile_setup.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -47,7 +48,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: _passwordController.text,
       );
       if (mounted) {
-        Navigator.of(context).pop(); // Return to previous screen after signup
+        // Navigate to profile setup
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
+        );
       }
     } catch (e) {
       setState(() {
