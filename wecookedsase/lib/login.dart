@@ -34,35 +34,65 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // Basic validation
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      if (email.isEmpty || password.isEmpty) {
+        setState(() {
+          _errorMessage = 'Please enter both email and password';
+        });
+        return;
+      }
+
       await Auth().signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
+        email: email,
+        password: password,
       );
+      
       if (mounted) {
         Navigator.of(context).pop(); // Return to previous screen after login
       }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
+      print('Firebase Auth Exception details:');
+      print('Code: ${e.code}');
+      print('Message: ${e.message}');
+      
       setState(() {
-        if (e is FirebaseAuthException) {
-          switch (e.code) {
-            case 'user-not-found':
-              _errorMessage = 'No user found with this email';
-              break;
-            case 'wrong-password':
-              _errorMessage = 'Wrong password provided';
-              break;
-            case 'invalid-email':
-              _errorMessage = 'Invalid email address';
-              break;
-            case 'user-disabled':
-              _errorMessage = 'This account has been disabled';
-              break;
-            default:
-              _errorMessage = 'Failed to sign in: ${e.message}';
-          }
-        } else {
-          _errorMessage = 'An error occurred while signing in';
+        switch (e.code.toLowerCase()) {
+          case 'user-not-found':
+          case 'invalid-credential':
+          case 'invalid-email':
+            _errorMessage = 'No account exists with this email. Please check the email or sign up.';
+            break;
+          case 'wrong-password':
+            _errorMessage = 'Incorrect password. Please try again.';
+            break;
+          case 'user-disabled':
+            _errorMessage = 'This account has been disabled. Please contact support.';
+            break;
+          case 'too-many-requests':
+            _errorMessage = 'Too many unsuccessful attempts. Please try again later.';
+            break;
+          case 'network-request-failed':
+            _errorMessage = 'Network error. Please check your internet connection.';
+            break;
+          case 'invalid-password':
+            _errorMessage = 'Please enter your password.';
+            break;
+          case 'unknown':
+            _errorMessage = 'An unexpected error occurred. Please try again.';
+            break;
+          default:
+            // For debugging purposes, log the unknown error code
+            print('Unhandled error code: ${e.code}');
+            _errorMessage = 'No account exists with this email. Please check the email or sign up.';
         }
+      });
+    } catch (e) {
+      print('Unexpected error during sign in: $e');
+      setState(() {
+        _errorMessage = 'An unexpected error occurred. Please try again.';
       });
     } finally {
       if (mounted) {

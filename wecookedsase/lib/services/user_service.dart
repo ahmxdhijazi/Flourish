@@ -32,10 +32,15 @@ class UserService {
     });
 
     // Update Firebase Auth user profile
-    await FirebaseAuth.instance.currentUser?.updateProfile(
-      displayName: displayName,
-      photoURL: profileImageUrl,
-    );
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await currentUser.updateProfile(
+        displayName: displayName,
+        photoURL: profileImageUrl,
+      );
+      // Reload the user to ensure we have the latest data
+      await currentUser.reload();
+    }
   }
 
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
