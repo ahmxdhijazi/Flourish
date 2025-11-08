@@ -11,11 +11,13 @@ class PlantService {
     return _firestore
         .collection(_collection)
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => 
-            snapshot.docs.map((doc) => Plant.fromFirestore(doc)).toList()
-        );
+        .map((snapshot) {
+          // Sort in memory instead of requiring a composite index
+          final plants = snapshot.docs.map((doc) => Plant.fromFirestore(doc)).toList();
+          plants.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return plants;
+        });
   }
 
   // Get all plants (for testing/admin)
