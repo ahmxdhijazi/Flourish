@@ -1,5 +1,6 @@
 import os
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 #Import the Roboflow library
 from inference_sdk import InferenceHTTPClient
@@ -18,6 +19,7 @@ client = InferenceHTTPClient(
 
 # 3. Create the Flask app (your "server")
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # A helper function to check file extensions
