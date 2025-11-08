@@ -1,5 +1,7 @@
 --- Python Virtual Environment ---
 
+.env
+
 Ignore the virtual environment folder completely
 
 venv/
