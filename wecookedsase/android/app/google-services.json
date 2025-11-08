@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "695245610759",
+    "firebase_url": "https://wecooked-sase2025-default-rtdb.firebaseio.com",
+    "project_id": "wecooked-sase2025",
+    "storage_bucket": "wecooked-sase2025.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:695245610759:android:5ccaa4cebe0fac20522fa2",
+        "android_client_info": {
+          "package_name": "com.example.wecookedsase"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-bCOMqI_3F6w91AIrl6Y9GZ9Ulw28rAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
