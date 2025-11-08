@@ -43,6 +43,7 @@ dependencies:
   http: ^1.5.0
   image_picker: ^1.2.0
   firebase_core: ^4.2.1
+  camera: ^0.11.3
 
 dev_dependencies:
   flutter_test:

@@ -5,12 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:forui/forui.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'screen/camera_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -67,16 +66,13 @@ class _MainNavigationState extends State<MainNavigation> {
       body: _screens[_currentIndex],
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Camera action
-          debugPrint('Camera button pressed');
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (context) => const CameraScreen()));
         },
         backgroundColor: Colors.deepPurple,
         elevation: 6,
-        child: Icon(
-          Icons.camera_alt,
-          color: Colors.white,
-          size: 28.sp,
-        ),
+        child: Icon(Icons.camera_alt, color: Colors.white, size: 28.sp),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: Container(
@@ -178,10 +174,7 @@ class HomeScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Colors.deepPurple,
-                    Colors.purple.shade300,
-                  ],
+                  colors: [Colors.deepPurple, Colors.purple.shade300],
                 ),
               ),
               child: Center(
@@ -221,9 +214,17 @@ class HomeScreen extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
                 children: [
-                  _buildFeatureCard("Plant 1", Icons.local_florist, Colors.orange),
+                  _buildFeatureCard(
+                    "Plant 1",
+                    Icons.local_florist,
+                    Colors.orange,
+                  ),
                   _buildFeatureCard("Plant 2", Icons.local_florist, Colors.red),
-                  _buildFeatureCard("Plant 3", Icons.local_florist, Colors.green),
+                  _buildFeatureCard(
+                    "Plant 3",
+                    Icons.local_florist,
+                    Colors.green,
+                  ),
                 ],
               ),
             ),
@@ -271,19 +272,23 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildFeatureCard(String title, IconData icon, Color color) {
-    return VStack([
-      Icon(icon, size: 50.sp, color: Colors.white),
-      10.h.heightBox,
-      Text(
-        title,
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14.sp,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    ], alignment: MainAxisAlignment.center, crossAlignment: CrossAxisAlignment.center)
+    return VStack(
+          [
+            Icon(icon, size: 50.sp, color: Colors.white),
+            10.h.heightBox,
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14.sp,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          alignment: MainAxisAlignment.center,
+          crossAlignment: CrossAxisAlignment.center,
+        )
         .p(16.w)
         .box
         .color(color)
@@ -339,10 +344,7 @@ class LeaderBoard extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.deepPurple,
-                    Colors.purple.shade300,
-                  ],
+                  colors: [Colors.deepPurple, Colors.purple.shade300],
                 ),
               ),
               child: Row(
@@ -378,12 +380,16 @@ class LeaderBoard extends StatelessWidget {
   }
 
   Widget _buildPodiumCard(Map<String, dynamic> entry, int rank) {
-    final height = rank == 1 ? 120.h : rank == 2 ? 100.h : 90.h;
+    final height = rank == 1
+        ? 120.h
+        : rank == 2
+        ? 100.h
+        : 90.h;
     final medalColor = rank == 1
         ? Colors.amber
         : rank == 2
-            ? Colors.grey.shade300
-            : Colors.orange.shade300;
+        ? Colors.grey.shade300
+        : Colors.orange.shade300;
 
     return Column(
       children: [
@@ -403,10 +409,7 @@ class LeaderBoard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Text(
-                entry['avatar'],
-                style: TextStyle(fontSize: 32.sp),
-              ),
+              Text(entry['avatar'], style: TextStyle(fontSize: 32.sp)),
               SizedBox(height: 8.h),
               Text(
                 entry['name'].toString().split(' ')[0],
@@ -497,10 +500,7 @@ class LeaderBoard extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                Text(
-                  entry['avatar'],
-                  style: TextStyle(fontSize: 24.sp),
-                ),
+                Text(entry['avatar'], style: TextStyle(fontSize: 24.sp)),
                 SizedBox(width: 12.w),
                 Expanded(
                   child: Column(
@@ -531,11 +531,7 @@ class LeaderBoard extends StatelessWidget {
 
           // Trophy icon for top 10
           if (entry['rank'] <= 10)
-            Icon(
-              Icons.emoji_events,
-              color: Colors.amber,
-              size: 24.sp,
-            ),
+            Icon(Icons.emoji_events, color: Colors.amber, size: 24.sp),
         ],
       ),
     );
@@ -575,7 +571,9 @@ class GardenScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(12.r),
+                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.all(12.w),
@@ -592,16 +590,10 @@ class GardenScreen extends StatelessWidget {
                       SizedBox(height: 4.h),
                       Text(
                         'Plant Details go here',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13.sp,
-                        ),
+                        style: TextStyle(color: Colors.grey, fontSize: 13.sp),
                       ),
                       SizedBox(height: 8.h),
-                      Text(
-                        "Plant Details",
-                        style: TextStyle(fontSize: 12.sp),
-                      ),
+                      Text("Plant Details", style: TextStyle(fontSize: 12.sp)),
                       SizedBox(height: 12.h),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -653,15 +645,17 @@ class ProfileScreen extends StatelessWidget {
       ),
       body: VStack([
         20.h.heightBox,
-        
+
         // Profile Avatar
         CircleAvatar(
           radius: 50.r,
-          backgroundImage: const NetworkImage('https://via.placeholder.com/150'),
+          backgroundImage: const NetworkImage(
+            'https://via.placeholder.com/150',
+          ),
         ),
-        
+
         10.h.heightBox,
-        
+
         Text(
           "John Doe",
           style: GoogleFonts.poppins(
@@ -671,14 +665,11 @@ class ProfileScreen extends StatelessWidget {
         ),
         Text(
           "Food Enthusiast",
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 14.sp,
-          ),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 14.sp),
         ),
-        
+
         30.h.heightBox,
-        
+
         // Stats Section
         FCard(
           child: Padding(
@@ -693,9 +684,9 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ).px(16.w),
-        
+
         30.h.heightBox,
-        
+
         // Menu Items
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -748,10 +739,7 @@ class ProfileScreen extends StatelessWidget {
       ),
       Text(
         label,
-        style: TextStyle(
-          color: Colors.grey.shade600,
-          fontSize: 12.sp,
-        ),
+        style: TextStyle(color: Colors.grey.shade600, fontSize: 12.sp),
       ),
     ], crossAlignment: CrossAxisAlignment.center);
   }
