@@ -72,8 +72,10 @@ class _MainNavigationState extends State<MainNavigation> {
       body: _screens[_currentIndex],
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Camera action
-          debugPrint('Camera button pressed');
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CameraScreen()),
+          );
         },
         backgroundColor: Colors.deepPurple,
         elevation: 6,
