@@ -1,0 +1,35 @@
+--- Python Virtual Environment ---
+
+Ignore the virtual environment folder completely
+
+venv/
+
+--- Python Bytecode & Cache ---
+
+Ignore compiled Python files
+
+*.pyc
+
+Ignore the Python cache folder
+
+pycache/
+
+--- Temporary Uploads ---
+
+Ignore the folder where you save images from the app
+
+(We don't want to commit user images!)
+
+uploads/
+
+--- macOS System Files ---
+
+Ignore the .DS_Store file
+
+.DS_Store
+
+--- VS Code Settings ---
+
+Ignore the local settings folder
+
+.vscode/
