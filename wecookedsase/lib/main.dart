@@ -570,12 +570,6 @@ class GardenScreen extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
-                  child: Image.network(
-                    'https://via.placeholder.com/400x200',
-                    height: 180.h,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.all(12.w),
@@ -583,7 +577,7 @@ class GardenScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Recipe ${index + 1}',
+                        'Plant ${index + 1}',
                         style: GoogleFonts.poppins(
                           fontSize: 18.sp,
                           fontWeight: FontWeight.bold,
@@ -591,7 +585,7 @@ class GardenScreen extends StatelessWidget {
                       ),
                       SizedBox(height: 4.h),
                       Text(
-                        'Delicious recipe description',
+                        'Plant Details go here',
                         style: TextStyle(
                           color: Colors.grey,
                           fontSize: 13.sp,
@@ -599,7 +593,7 @@ class GardenScreen extends StatelessWidget {
                       ),
                       SizedBox(height: 8.h),
                       Text(
-                        "Prep time: 30 mins • Serves: 4",
+                        "Plant Details",
                         style: TextStyle(fontSize: 12.sp),
                       ),
                       SizedBox(height: 12.h),
@@ -613,7 +607,7 @@ class GardenScreen extends StatelessWidget {
                           ),
                           SizedBox(width: 8.w),
                           FButton(
-                            label: const Text('Save'),
+                            label: const Text('Favorite'),
                             prefix: const Icon(Icons.favorite_border),
                             style: FButtonStyle.primary,
                             onPress: () {},
