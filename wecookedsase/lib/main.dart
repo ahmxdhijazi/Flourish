@@ -6,6 +6,9 @@ import 'package:forui/forui.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'profile.dart';
+import 'pages/plants_page.dart';
+import 'services/plant_service.dart';
+import 'models/plant_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -96,7 +99,7 @@ class _MainNavigationState extends State<MainNavigation> {
           notchMargin: 8.0,
           elevation: 0,
           child: SizedBox(
-            height: 60.h,
+            height: 65.h,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -122,34 +125,53 @@ class _MainNavigationState extends State<MainNavigation> {
             _currentIndex = index;
           });
         },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.deepPurple : Colors.grey,
-              size: 24.sp,
-            ),
-            SizedBox(height: 4.h),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: isSelected ? 12.sp : 11.sp,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 8.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
                 color: isSelected ? Colors.deepPurple : Colors.grey,
+                size: 20.sp,
               ),
-            ),
-          ],
+              SizedBox(height: 2.h),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                      fontSize: 10.sp,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? Colors.deepPurple : Colors.grey,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// Home Screen
-class HomeScreen extends StatelessWidget {
+// Home Screen with Firebase Integration
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final PlantService _plantService = PlantService();
+  final String _userId = 'demo_user'; // Replace with actual user ID from authentication
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +188,19 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          // Button to create sample plants for testing
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              await _plantService.createSamplePlants(_userId);
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(content: Text('Sample plants created!')),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -203,29 +238,96 @@ class HomeScreen extends StatelessWidget {
 
             SizedBox(height: 20.h),
 
-            // Featured Cards
+            // Featured Cards - Firebase Stream
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: Text(
-                "Your Plants",
-                style: GoogleFonts.poppins(
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Your Plants",
+                    style: GoogleFonts.poppins(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "Real-time from Firebase",
+                    style: GoogleFonts.poppins(
+                      fontSize: 10.sp,
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
               ),
             ),
             SizedBox(height: 10.h),
 
+            // StreamBuilder to fetch plants from Firebase
             SizedBox(
               height: 160.h,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                children: [
-                  _buildFeatureCard("Plant 1", Icons.local_florist, Colors.orange),
-                  _buildFeatureCard("Plant 2", Icons.local_florist, Colors.red),
-                  _buildFeatureCard("Plant 3", Icons.local_florist, Colors.green),
-                ],
+              child: StreamBuilder<List<Plant>>(
+                stream: _plantService.getUserPlants(_userId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        'Error: ${snapshot.error}',
+                        style: GoogleFonts.poppins(color: Colors.red),
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.eco, size: 48.sp, color: Colors.grey),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'No plants yet!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14.sp,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            'Tap + to add sample plants',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12.sp,
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final plants = snapshot.data!;
+                  return ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    itemCount: plants.length,
+                    itemBuilder: (context, index) {
+                      final plant = plants[index];
+                      final color = Color(
+                        int.parse(plant.colorHex.replaceFirst('#', '0xFF'))
+                      );
+                      return _buildFeatureCard(
+                        plant,
+                        color,
+                        context,
+                      );
+                    },
+                  );
+                },
               ),
             ),
 
@@ -249,17 +351,30 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 children: [
                   FButton(
-                    label: const Text('Quick Action 1'),
+                    label: const Text('Add New Plant'),
                     prefix: const Icon(Icons.add),
                     style: FButtonStyle.outline,
-                    onPress: () {},
+                    onPress: () async {
+                      // Add a new plant
+                      await _plantService.addPlant(
+                        Plant(
+                          name: 'New Plant ${DateTime.now().millisecond}',
+                          description: 'A newly added plant',
+                          colorHex: '#2196F3',
+                        ),
+                        _userId,
+                      );
+                    },
                   ),
                   SizedBox(height: 12.h),
                   FButton(
-                    label: const Text('Quick Action 2'),
-                    prefix: const Icon(Icons.favorite),
+                    label: const Text('View All Plants'),
+                    prefix: const Icon(Icons.list),
                     style: FButtonStyle.outline,
-                    onPress: () {},
+                    onPress: () {
+                      // Navigate to garden screen
+                      setState(() {});
+                    },
                   ),
                 ],
               ),
@@ -271,29 +386,53 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureCard(String title, IconData icon, Color color) {
-    return VStack([
-      Icon(icon, size: 50.sp, color: Colors.white),
-      10.h.heightBox,
-      Text(
-        title,
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14.sp,
+  Widget _buildFeatureCard(Plant plant, Color color, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlantsPage(
+              plantName: plant.name,
+              plantIcon: Icons.local_florist,
+              plantColor: color,
+            ),
+          ),
+        );
+      },
+      child: VStack([
+        Icon(Icons.local_florist, size: 50.sp, color: Colors.white),
+        10.h.heightBox,
+        Text(
+          plant.name,
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14.sp,
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        textAlign: TextAlign.center,
-      ),
-    ], alignment: MainAxisAlignment.center, crossAlignment: CrossAxisAlignment.center)
-        .p(16.w)
-        .box
-        .color(color)
-        .roundedLg
-        .width(140.w)
-        .height(140.h)
-        .shadowMd
-        .make()
-        .pOnly(right: 12.w);
+        4.h.heightBox,
+        Text(
+          'Level ${plant.level}',
+          style: GoogleFonts.poppins(
+            color: Colors.white.withValues(alpha: 0.9),
+            fontSize: 11.sp,
+          ),
+        ),
+      ], alignment: MainAxisAlignment.center, crossAlignment: CrossAxisAlignment.center)
+          .p(16.w)
+          .box
+          .color(color)
+          .roundedLg
+          .width(140.w)
+          .height(140.h)
+          .shadowMd
+          .make()
+          .pOnly(right: 12.w),
+    );
   }
 }
 
