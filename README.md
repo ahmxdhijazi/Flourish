@@ -81,7 +81,7 @@ lib/
 ### Security Rules
 Set up appropriate security rules for Firestore and Storage to protect user data while allowing necessary access.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: Flutter & Dart
 - **Backend**: Firebase
@@ -94,7 +94,7 @@ Set up appropriate security rules for Firestore and Storage to protect user data
   - google_fonts
   - forui
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -102,15 +102,9 @@ Set up appropriate security rules for Firestore and Storage to protect user data
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Flutter](https://flutter.dev)
-- [Firebase](https://firebase.google.com)
-- All our amazing contributors!
 
 ---
 
