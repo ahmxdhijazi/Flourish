@@ -42,7 +42,10 @@ dependencies:
   forui: ^0.7.0
   http: ^1.5.0
   image_picker: ^1.2.0
+  
+  # Firebase
   firebase_core: ^4.2.1
+  cloud_firestore: ^6.1.0
 
 dev_dependencies:
   flutter_test:
