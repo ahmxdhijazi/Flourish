@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:velocity_x/velocity_x.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,6 +26,104 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showForgotPasswordDialog(BuildContext context) async {
+    final emailController = TextEditingController(text: _emailController.text);
+    final formKey = GlobalKey<FormState>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Enter your email address and we\'ll send you a link to reset your password.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                FTextField(
+                  controller: emailController,
+                  label: const Text('Email'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.pop(context, true);
+                }
+              },
+              child: const Text('Send Reset Link'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true && mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      try {
+        await Auth().sendPasswordResetEmail(emailController.text.trim());
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Password reset link sent. Please check your email.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        setState(() {
+          switch (e.code) {
+            case 'user-not-found':
+              _errorMessage = 'No account exists with this email address';
+              break;
+            case 'invalid-email':
+              _errorMessage = 'Please enter a valid email address';
+              break;
+            default:
+              _errorMessage = e.message ?? 'Failed to send reset email';
+          }
+        });
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'An error occurred. Please try again.';
+        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
 
   Future<void> _signIn() async {
@@ -54,43 +153,28 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pop(); // Return to previous screen after login
       }
     } on FirebaseAuthException catch (e) {
-      print('Firebase Auth Exception details:');
-      print('Code: ${e.code}');
-      print('Message: ${e.message}');
+      debugPrint('Firebase Auth Exception details:');
+      debugPrint('Code: ${e.code}');
+      debugPrint('Message: ${e.message}');
       
       setState(() {
         switch (e.code.toLowerCase()) {
-          case 'user-not-found':
-          case 'invalid-credential':
-          case 'invalid-email':
-            _errorMessage = 'No account exists with this email. Please check the email or sign up.';
-            break;
-          case 'wrong-password':
-            _errorMessage = 'Incorrect password. Please try again.';
-            break;
-          case 'user-disabled':
-            _errorMessage = 'This account has been disabled. Please contact support.';
-            break;
           case 'too-many-requests':
             _errorMessage = 'Too many unsuccessful attempts. Please try again later.';
             break;
           case 'network-request-failed':
             _errorMessage = 'Network error. Please check your internet connection.';
             break;
-          case 'invalid-password':
-            _errorMessage = 'Please enter your password.';
-            break;
-          case 'unknown':
-            _errorMessage = 'An unexpected error occurred. Please try again.';
+          case 'user-disabled':
+            _errorMessage = 'This account has been disabled. Please contact support.';
             break;
           default:
-            // For debugging purposes, log the unknown error code
-            print('Unhandled error code: ${e.code}');
-            _errorMessage = 'No account exists with this email. Please check the email or sign up.';
+            // For most auth errors, just show a generic message
+            _errorMessage = 'Invalid email or password.';
         }
       });
     } catch (e) {
-      print('Unexpected error during sign in: $e');
+      debugPrint('Unexpected error during sign in: $e');
       setState(() {
         _errorMessage = 'An unexpected error occurred. Please try again.';
       });
@@ -213,6 +297,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: FButtonStyle.outline,
                 onPress: _isLoading ? null : _signIn,
               ),
+
+              12.h.heightBox,
+              
+              // Forgot password button
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: _isLoading ? null : () => _showForgotPasswordDialog(context),
+                  child: Text(
+                    'Forgot Password?',
+                    style: TextStyle(
+                      color: Colors.deepPurple,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ),
+              ),
               
               20.h.heightBox,
               
@@ -246,47 +347,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               
               20.h.heightBox,
-              
-              // Divider
-              Row(
-                children: [
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    child: Text(
-                      "or continue with",
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14.sp,
-                      ),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
-                ],
-              ),
-              
-              20.h.heightBox,
-              
-              // Social sign in buttons
-              FButton(
-                label: const Text('Sign in with Google'),
-                prefix: const Icon(Icons.g_mobiledata),  // Using a Material icon as placeholder
-                style: FButtonStyle.outline,
-                onPress: () {
-                  // TODO: Implement Google sign in
-                },
-              ),
-              
-              16.h.heightBox,
-              
-              FButton(
-                label: const Text('Sign in with Apple'),
-                prefix: const Icon(Icons.apple),
-                style: FButtonStyle.outline,
-                onPress: () {
-                  // TODO: Implement Apple sign in
-                },
-              ),
             ],
           ),
         ),

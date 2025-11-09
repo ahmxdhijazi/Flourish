@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:velocity_x/velocity_x.dart';
+import 'pages/account_settings.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:forui/forui.dart';
@@ -35,7 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: const Text('Take a photo'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await _pickImage(ImageSource.camera, user);
+                  await _pickImage(context, ImageSource.camera, user);
                 },
               ),
               ListTile(
@@ -43,7 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: const Text('Choose from gallery'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await _pickImage(ImageSource.gallery, user);
+                  await _pickImage(context, ImageSource.gallery, user);
                 },
               ),
               if (user.photoURL != null)
@@ -54,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   onTap: () async {
                     Navigator.pop(context);
-                    await _removePhoto(user);
+                    await _removePhoto(context, user);
                   },
                 ),
             ],
@@ -64,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _pickImage(ImageSource source, User user) async {
+  Future<void> _pickImage(BuildContext context, ImageSource source, User user) async {
     try {
       setState(() => _isLoading = true);
       
@@ -84,9 +85,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update profile picture: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update profile picture: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -94,7 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _removePhoto(User user) async {
+  Future<void> _removePhoto(BuildContext context, User user) async {
     try {
       setState(() => _isLoading = true);
       await _userService.createUserProfile(
@@ -103,9 +106,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profileImage: null,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to remove profile picture: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to remove profile picture: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -143,6 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
           try {
             await Auth().refreshUser();
             // Also refresh Firestore data if needed
@@ -154,7 +160,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              scaffoldMessenger.showSnackBar(
                 SnackBar(
                   content: Text('Failed to refresh: ${e.toString()}'),
                 ),
@@ -260,10 +266,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 8.h.heightBox,
                 TextButton(
                   onPressed: () async {
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
                     try {
                       await Auth().sendEmailVerification();
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        scaffoldMessenger.showSnackBar(
                           const SnackBar(
                             content: Text('Verification email sent'),
                           ),
@@ -271,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        scaffoldMessenger.showSnackBar(
                           const SnackBar(
                             content: Text('Failed to send verification email. Please try again later.'),
                           ),
@@ -327,10 +334,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
 
                     if (newEmail != null && newEmail.isNotEmpty && mounted) {
+                      final scaffoldMessenger = ScaffoldMessenger.of(context);
                       try {
                         await Auth().updateEmail(newEmail);
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          scaffoldMessenger.showSnackBar(
                             const SnackBar(
                               content: Text(
                                 'Verification email sent to new address. Please check your email to complete the change.',
@@ -379,12 +387,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           );
 
                           if (password != null && password.isNotEmpty && mounted) {
+                            final scaffoldMessenger = ScaffoldMessenger.of(context);
                             try {
                               // Reauthenticate and retry email update
                               await Auth().reauthenticateWithPassword(password);
                               await Auth().updateEmail(newEmail);
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                scaffoldMessenger.showSnackBar(
                                   const SnackBar(
                                     content: Text(
                                       'Verification email sent to new address. Please check your email to complete the change.',
@@ -394,7 +403,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               }
                             } catch (e) {
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                scaffoldMessenger.showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       e is FirebaseAuthException && e.code == 'wrong-password'
@@ -407,7 +416,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             }
                           }
                         } else if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                          scaffoldMessenger.showSnackBar(
                             SnackBar(
                               content: Text('Failed to change email: ${e.message}'),
                             ),
@@ -415,7 +425,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         }
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                          scaffoldMessenger.showSnackBar(
                             SnackBar(
                               content: Text('Failed to change email: ${e.toString()}'),
                             ),
@@ -468,7 +479,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 prefix: const Icon(Icons.settings),
                 style: FButtonStyle.outline,
                 onPress: () {
-                  // TODO: Navigate to account settings
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AccountSettingsScreen(),
+                    ),
+                  );
                 },
               ),
               SizedBox(height: 12.h),

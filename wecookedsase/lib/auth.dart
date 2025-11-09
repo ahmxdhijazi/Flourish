@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class Auth {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -13,7 +14,7 @@ class Auth {
     required String password,
   }) async {
     try {
-      print('Attempting to sign in user: $email');
+      debugPrint('Attempting to sign in user: $email');
       
       // Validate email and password
       if (email.trim().isEmpty) {
@@ -36,18 +37,18 @@ class Auth {
           email: email.trim(), 
           password: password,
         );
-        print('Sign in successful for user: $email');
+        debugPrint('Sign in successful for user: $email');
       } on FirebaseAuthException catch (e) {
-        print('Firebase Auth Exception during sign in:');
-        print('Code: ${e.code}');
-        print('Message: ${e.message}');
+        debugPrint('Firebase Auth Exception during sign in:');
+        debugPrint('Code: ${e.code}');
+        debugPrint('Message: ${e.message}');
         throw FirebaseAuthException(
           code: e.code,
           message: e.message,
         );
       }
     } catch (e) {
-      print('Sign in error: $e');
+      debugPrint('Sign in error: $e');
       if (e is! FirebaseAuthException) {
         // Convert other errors to FirebaseAuthException
         throw FirebaseAuthException(
@@ -64,7 +65,7 @@ class Auth {
     required String password,
   }) async {
     try {
-      print('Starting user creation for email: $email');
+      debugPrint('Starting user creation for email: $email');
       
       // Create the user
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
@@ -72,7 +73,7 @@ class Auth {
         password: password,
       );
       
-      print('User created successfully with UID: ${userCredential.user?.uid}');
+      debugPrint('User created successfully with UID: ${userCredential.user?.uid}');
       
       if (userCredential.user == null) {
         throw Exception('User creation successful but user is null');
@@ -80,11 +81,11 @@ class Auth {
       
       // Wait a short moment to ensure Firebase is ready
       await Future.delayed(const Duration(seconds: 1));
-      print('Waited for Firebase initialization');
+      debugPrint('Waited for Firebase initialization');
       
       // Reload the user to ensure we have the latest data
       await userCredential.user!.reload();
-      print('User reloaded after creation');
+      debugPrint('User reloaded after creation');
       
       // Get the latest user instance
       final user = _firebaseAuth.currentUser;
@@ -93,32 +94,32 @@ class Auth {
       }
       
       // Print user state before sending verification
-      print('User state before verification:');
-      print('- Email: ${user.email}');
-      print('- EmailVerified: ${user.emailVerified}');
-      print('- isAnonymous: ${user.isAnonymous}');
+      debugPrint('User state before verification:');
+      debugPrint('- Email: ${user.email}');
+      debugPrint('- EmailVerified: ${user.emailVerified}');
+      debugPrint('- isAnonymous: ${user.isAnonymous}');
       
       // Send verification email
       await user.sendEmailVerification();
-      print('Verification email sent during account creation to ${user.email}');
+      debugPrint('Verification email sent during account creation to ${user.email}');
       
       // Verify the action
       await user.reload();
-      print('Final user state:');
-      print('- EmailVerified: ${user.emailVerified}');
-      print('- User metadata: Created at ${user.metadata.creationTime}');
+      debugPrint('Final user state:');
+      debugPrint('- EmailVerified: ${user.emailVerified}');
+      debugPrint('- User metadata: Created at ${user.metadata.creationTime}');
       
     } catch (e, stackTrace) {
-      print('Error during account creation or verification:');
-      print('Error: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('Error during account creation or verification:');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
       rethrow;
     }
   }
 
   Future<void> sendEmailVerification() async {
     try {
-      print('Starting manual verification email send process');
+      debugPrint('Starting manual verification email send process');
       
       // Get current user and reload to ensure we have latest data
       var user = _firebaseAuth.currentUser;
@@ -126,14 +127,14 @@ class Auth {
         throw Exception('No user is currently signed in');
       }
       
-      print('Current user state before reload:');
-      print('- Email: ${user.email}');
-      print('- EmailVerified: ${user.emailVerified}');
-      print('- UID: ${user.uid}');
+      debugPrint('Current user state before reload:');
+      debugPrint('- Email: ${user.email}');
+      debugPrint('- EmailVerified: ${user.emailVerified}');
+      debugPrint('- UID: ${user.uid}');
       
       // Reload user to get fresh data
       await user.reload();
-      print('User reloaded');
+      debugPrint('User reloaded');
       
       user = _firebaseAuth.currentUser; // Get fresh instance after reload
       
@@ -141,9 +142,9 @@ class Auth {
         throw Exception('User is null after reload');
       }
       
-      print('User state after reload:');
-      print('- Email: ${user.email}');
-      print('- EmailVerified: ${user.emailVerified}');
+      debugPrint('User state after reload:');
+      debugPrint('- Email: ${user.email}');
+      debugPrint('- EmailVerified: ${user.emailVerified}');
       
       if (user.emailVerified) {
         throw Exception('Email is already verified');
@@ -153,27 +154,27 @@ class Auth {
       final metadataTime = user.metadata.creationTime;
       if (metadataTime != null) {
         final timeSinceCreation = DateTime.now().difference(metadataTime);
-        print('Time since account creation: ${timeSinceCreation.inSeconds} seconds');
+        debugPrint('Time since account creation: ${timeSinceCreation.inSeconds} seconds');
         
         if (timeSinceCreation < const Duration(seconds: 5)) {
-          print('Account recently created, adding small delay');
+          debugPrint('Account recently created, adding small delay');
           await Future.delayed(const Duration(seconds: 2));
         }
       }
 
-      print('Attempting to send verification email');
+      debugPrint('Attempting to send verification email');
       await user.sendEmailVerification();
-      print('Verification email successfully sent to ${user.email}');
+      debugPrint('Verification email successfully sent to ${user.email}');
       
       // Final state check
       await user.reload();
-      print('Final user state:');
-      print('- EmailVerified: ${user.emailVerified}');
+      debugPrint('Final user state:');
+      debugPrint('- EmailVerified: ${user.emailVerified}');
       
     } catch (e, stackTrace) {
-      print('Error sending verification email:');
-      print('Error: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('Error sending verification email:');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -187,10 +188,10 @@ class Auth {
       final user = _firebaseAuth.currentUser;
       if (user != null) {
         await user.reload();
-        print('User data refreshed successfully');
+        debugPrint('User data refreshed successfully');
       }
     } catch (e) {
-      print('Error refreshing user data: $e');
+      debugPrint('Error refreshing user data: $e');
       rethrow;
     }
   }
@@ -213,16 +214,16 @@ class Auth {
 
       // Reauthenticate
       await user.reauthenticateWithCredential(credential);
-      print('User successfully reauthenticated');
+      debugPrint('User successfully reauthenticated');
     } catch (e) {
-      print('Error during reauthentication: $e');
+      debugPrint('Error during reauthentication: $e');
       rethrow;
     }
   }
 
   Future<void> updateEmail(String newEmail) async {
     try {
-      print('Attempting to update email to: $newEmail');
+      debugPrint('Attempting to update email to: $newEmail');
       final user = _firebaseAuth.currentUser;
       if (user == null) {
         throw FirebaseAuthException(
@@ -233,7 +234,7 @@ class Auth {
 
       try {
         await user.verifyBeforeUpdateEmail(newEmail);
-        print('Verification email sent to new address: $newEmail');
+        debugPrint('Verification email sent to new address: $newEmail');
       } on FirebaseAuthException catch (e) {
         if (e.code == 'requires-recent-login') {
           rethrow; // Let the UI handle the reauthentication flow
@@ -241,7 +242,31 @@ class Auth {
         throw e;
       }
     } catch (e) {
-      print('Error updating email: $e');
+      debugPrint('Error updating email: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      debugPrint('Attempting to send password reset email to: $email');
+      
+      if (email.trim().isEmpty) {
+        throw FirebaseAuthException(
+          code: 'invalid-email',
+          message: 'Email address cannot be empty',
+        );
+      }
+
+      await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+      debugPrint('Password reset email sent successfully to: $email');
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Firebase Auth Exception sending reset email:');
+      debugPrint('Code: ${e.code}');
+      debugPrint('Message: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('Error sending password reset email: $e');
       rethrow;
     }
   }
