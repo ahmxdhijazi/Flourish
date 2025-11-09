@@ -611,7 +611,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               30.h.heightBox,
 
               Text(
-                'Account',
+                'Danger Zone',
                 style: GoogleFonts.poppins(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.bold,

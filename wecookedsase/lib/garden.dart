@@ -434,9 +434,20 @@ class _GardenScreenState extends State<GardenScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => PlantsPage(
+             plantId: plant.id,
               plantName: plant.name,
               plantIcon: Icons.local_florist,
               plantColor: color,
+              plantDescription: plant.description,
+              plantLevel: plant.level,
+              plantXp: plant.xp,
+              plantGrowthProgress: plant.growthProgress,
+              plantWaterLevel: plant.waterLevel,
+              plantSunlight: plant.sunlight,
+              plantLastWatered: plant.lastWatered,
+              plantCareInstructions: plant.careInstructions,
+              plantCreatedAt: plant.createdAt,
+              plantUpdatedAt: plant.updatedAt,
             ),
           ),
         );
