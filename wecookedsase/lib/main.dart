@@ -12,6 +12,7 @@ import 'pages/plants_page.dart';
 import 'services/plant_service.dart';
 import 'models/plant_model.dart';
 import 'login.dart';
+import 'garden.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -239,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "WeCooked",
+          "Flourish",
           style: GoogleFonts.poppins(
             fontSize: 24.sp,
             fontWeight: FontWeight.bold,
@@ -729,96 +730,6 @@ class LeaderBoard extends StatelessWidget {
               size: 24.sp,
             ),
         ],
-      ),
-    );
-  }
-}
-
-// Garden Screen
-class GardenScreen extends StatelessWidget {
-  const GardenScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "All Plants",
-          style: GoogleFonts.poppins(
-            fontSize: 24.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView.builder(
-        padding: EdgeInsets.all(8.w),
-        itemCount: 10,
-        itemBuilder: (context, index) {
-          return Card(
-            margin: EdgeInsets.only(bottom: 12.h),
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(12.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Plant ${index + 1}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4.h),
-                      Text(
-                        'Plant Details go here',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13.sp,
-                        ),
-                      ),
-                      SizedBox(height: 8.h),
-                      Text(
-                        "Plant Details",
-                        style: TextStyle(fontSize: 12.sp),
-                      ),
-                      SizedBox(height: 12.h),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          FButton(
-                            label: const Text('View'),
-                            style: FButtonStyle.outline,
-                            onPress: () {},
-                          ),
-                          SizedBox(width: 8.w),
-                          FButton(
-                            label: const Text('Favorite'),
-                            prefix: const Icon(Icons.favorite_border),
-                            style: FButtonStyle.primary,
-                            onPress: () {},
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
