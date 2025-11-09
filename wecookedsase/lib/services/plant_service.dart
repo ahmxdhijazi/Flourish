@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../models/plant_model.dart';
 import 'user_service.dart';
 
 class PlantService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final String _collection = 'plants';
   final UserService _userService = UserService(); // <-- add this line
 
@@ -138,6 +140,77 @@ class PlantService {
   Future<bool> deletePlant(String plantId) async {
     try {
       await _firestore.collection(_collection).doc(plantId).delete();
+      // First, get the plant document to retrieve the userId
+      DocumentSnapshot plantDoc = await _firestore
+          .collection(_collection)
+          .doc(plantId)
+          .get();
+      
+      if (!plantDoc.exists) {
+        debugPrint('Plant document does not exist');
+        return false;
+      }
+      
+      final plantData = plantDoc.data() as Map<String, dynamic>;
+      final userId = plantData['userId'] as String?;
+      
+      if (userId == null) {
+        debugPrint('UserId not found in plant document');
+        return false;
+      }
+      
+      // Delete the plant's storage folder (user_plants/{userId}/{plantId}/)
+      try {
+        final storageRef = _storage.ref().child('user_plants/$userId/$plantId');
+        final listResult = await storageRef.listAll();
+        
+        // Delete all files in the folder
+        for (var item in listResult.items) {
+          await item.delete();
+          debugPrint('Deleted storage file: ${item.fullPath}');
+        }
+        
+        // Delete any subfolders (if they exist)
+        for (var prefix in listResult.prefixes) {
+          final subListResult = await prefix.listAll();
+          for (var item in subListResult.items) {
+            await item.delete();
+            debugPrint('Deleted storage file in subfolder: ${item.fullPath}');
+          }
+        }
+        
+        debugPrint('Successfully deleted storage folder for plant $plantId');
+      } catch (storageError) {
+        debugPrint('Error deleting storage folder (may not exist): $storageError');
+        // Continue with deletion even if storage deletion fails
+      }
+      
+      // Delete related plant_analysis documents
+      try {
+        final analysisSnapshot = await _firestore
+            .collection('plant_analysis')
+            .where('plantId', isEqualTo: plantId)
+            .where('userId', isEqualTo: userId)
+            .get();
+        
+        for (var doc in analysisSnapshot.docs) {
+          await doc.reference.delete();
+          debugPrint('Deleted analysis document: ${doc.id}');
+        }
+        
+        debugPrint('Successfully deleted ${analysisSnapshot.docs.length} analysis documents');
+      } catch (analysisError) {
+        debugPrint('Error deleting analysis documents: $analysisError');
+        // Continue with deletion even if analysis deletion fails
+      }
+      
+      // Finally, delete the plant document itself
+      await _firestore
+          .collection(_collection)
+          .doc(plantId)
+          .delete();
+      
+      debugPrint('Successfully deleted plant document: $plantId');
       return true;
     } catch (e) {
       debugPrint('Error deleting plant: $e');

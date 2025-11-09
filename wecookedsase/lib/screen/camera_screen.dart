@@ -135,24 +135,24 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
   Future<void> _saveScoresToFirestore(PlantAnalysisResult scores) async {
     if (widget.plantId == null) {
-      debugPrint('⚠️ Cannot save scores: plantId is null');
+      debugPrint('Cannot save scores: plantId is null');
       return;
     }
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        debugPrint('⚠️ Cannot save scores: user not logged in');
+        debugPrint('Cannot save scores: user not logged in');
         return;
       }
 
-      debugPrint('💾 Saving scores to Firestore...');
-      debugPrint('  📍 PlantId: ${widget.plantId}');
-      debugPrint('  👤 UserId: ${user.uid}');
-      debugPrint('  📊 Overall Score: ${scores.overallScore}');
-      debugPrint('  💚 Health Score: ${scores.healthScore}');
-      debugPrint('  📈 Growth Score: ${scores.growthScore}');
-      debugPrint('  🌱 Stage: ${scores.stage}');
+      debugPrint('Saving scores to Firestore...');
+      debugPrint('  PlantId: ${widget.plantId}');
+      debugPrint('  UserId: ${user.uid}');
+      debugPrint('  Overall Score: ${scores.overallScore}');
+      debugPrint('  Health Score: ${scores.healthScore}');
+      debugPrint('  Growth Score: ${scores.growthScore}');
+      debugPrint('  Stage: ${scores.stage}');
 
       // Save to Firestore
       final docRef = await FirebaseFirestore.instance.collection('plant_analysis').add({
@@ -168,9 +168,9 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
         'rawData': scores.rawData,
       });
 
-      debugPrint('✅ Scores saved to Firestore successfully! Doc ID: ${docRef.id}');
+      debugPrint('Scores saved to Firestore successfully! Doc ID: ${docRef.id}');
     } catch (e) {
-      debugPrint('❌ Error saving scores to Firestore: $e');
+      debugPrint('Error saving scores to Firestore: $e');
     }
   }
 
@@ -186,7 +186,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
       const String localhost = '127.0.0.1:5000'; // Loopback (may not work with iOS simulator)
       
       // iOS simulator can't always reach 127.0.0.1, use network IP instead
-      String baseUrl = backendIP1; // <-- Using network IP for iOS simulator
+      String baseUrl = backendIP2; // <-- Using network IP for iOS simulator
       if (Platform.isAndroid) {
         baseUrl = '10.0.2.2:5000'; // Android emulator
       }
@@ -276,6 +276,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                         plantSunlight: plant.sunlight,
                         plantLastWatered: plant.lastWatered,
                         plantCareInstructions: plant.careInstructions,
+                        latestImageUrl: plant.latestImageUrl,
                         plantCreatedAt: plant.createdAt,
                         plantUpdatedAt: plant.updatedAt,
                       ),
@@ -355,6 +356,22 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
         _uploadSuccess = true;
         _downloadUrl = downloadUrl;
       });
+
+      // Update the plant's latestImageUrl in Firestore
+      if (widget.plantId != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('plants')
+              .doc(widget.plantId)
+              .update({
+            'latestImageUrl': downloadUrl,
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
+          debugPrint('Updated plant latestImageUrl in Firestore');
+        } catch (e) {
+          debugPrint('Failed to update plant latestImageUrl: $e');
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

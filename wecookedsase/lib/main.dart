@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // StreamBuilder to fetch plants from Firebase
             SizedBox(
-              height: 160.h,
+              height: 180.h,
               child: StreamBuilder<List<Plant>>(
                 stream: _plantService.getUserPlants(_userId!),
                 builder: (context, snapshot) {
@@ -407,8 +407,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     prefix: const Icon(Icons.list),
                     style: FButtonStyle.outline,
                     onPress: () {
-                      // Navigate to garden screen
-                      setState(() {});
+                      // Navigate to garden screen (index 2 in bottom nav)
+                      final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
+                      if (mainNavState != null) {
+                        mainNavState.setState(() {
+                          mainNavState._currentIndex = 2;
+                        });
+                      }
                     },
                   ),
                 ],
@@ -440,6 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
               plantSunlight: plant.sunlight,
               plantLastWatered: plant.lastWatered,
               plantCareInstructions: plant.careInstructions,
+              latestImageUrl: plant.latestImageUrl,
               plantCreatedAt: plant.createdAt,
               plantUpdatedAt: plant.updatedAt,
             ),
@@ -447,7 +453,38 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
       child: VStack([
-        Icon(Icons.local_florist, size: 50.sp, color: Colors.white),
+        // Show plant image if available, otherwise show icon
+        plant.latestImageUrl != null && plant.latestImageUrl!.isNotEmpty
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8.r),
+                child: Image.network(
+                  plant.latestImageUrl!,
+                  width: 80.sp,
+                  height: 80.sp,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(Icons.local_florist, size: 50.sp, color: Colors.white);
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return SizedBox(
+                      width: 50.sp,
+                      height: 50.sp,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              )
+            : Icon(Icons.local_florist, size: 50.sp, color: Colors.white),
         10.h.heightBox,
         Text(
           plant.name,
@@ -475,8 +512,8 @@ class _HomeScreenState extends State<HomeScreen> {
           .box
           .color(color)
           .roundedLg
-          .width(140.w)
-          .height(140.h)
+          .width(160.w)
+          .height(160.h)
           .shadowMd
           .make()
           .pOnly(right: 12.w),
