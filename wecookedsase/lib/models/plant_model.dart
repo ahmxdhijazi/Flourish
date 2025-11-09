@@ -13,6 +13,7 @@ class Plant {
   final String iconName; // Store as string, map to IconData in UI
   final String colorHex; // Store color as hex string
   final String careInstructions;
+  final String? latestImageUrl; // URL to the most recent uploaded image
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -29,6 +30,7 @@ class Plant {
     this.iconName = 'local_florist',
     this.colorHex = '#FF9800', // Default orange
     this.careInstructions = 'Default care instructions',
+    this.latestImageUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : lastWatered = lastWatered ?? DateTime.now(),
@@ -52,6 +54,7 @@ class Plant {
       iconName: data['iconName'] ?? 'local_florist',
       colorHex: data['colorHex'] ?? '#FF9800',
       careInstructions: data['careInstructions'] ?? 'No instructions available',
+      latestImageUrl: data['latestImageUrl'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -71,6 +74,7 @@ class Plant {
       'iconName': iconName,
       'colorHex': colorHex,
       'careInstructions': careInstructions,
+      'latestImageUrl': latestImageUrl,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -103,6 +107,7 @@ class Plant {
     String? iconName,
     String? colorHex,
     String? careInstructions,
+    String? latestImageUrl,
     DateTime? updatedAt,
   }) {
     return Plant(
@@ -118,6 +123,7 @@ class Plant {
       iconName: iconName ?? this.iconName,
       colorHex: colorHex ?? this.colorHex,
       careInstructions: careInstructions ?? this.careInstructions,
+      latestImageUrl: latestImageUrl ?? this.latestImageUrl,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

@@ -31,7 +31,7 @@ Future<void> showEditPlantDialog(
   );
   String selectedColorHex = plant.colorHex;
 
-  final result = await showDialog<bool>(
+  final result = await showDialog<dynamic>(
     context: context,
     builder: (BuildContext dialogContext) {
       return StatefulBuilder(
@@ -177,49 +177,126 @@ Future<void> showEditPlantDialog(
                 ],
               ),
             ),
+            actionsAlignment: MainAxisAlignment.center,
+            actionsPadding: EdgeInsets.fromLTRB(24.w, 0, 24.w, 16.h),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.poppins(color: Colors.grey),
-                ),
+              // First row: Cancel and Delete
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.poppins(color: Colors.grey),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      // Show confirmation dialog
+                      final confirmed = await showDialog<bool>(
+                        context: dialogContext,
+                        builder: (BuildContext confirmContext) {
+                          return AlertDialog(
+                            title: Row(
+                              children: [
+                                Icon(Icons.warning, color: Colors.red, size: 24.sp),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Delete Plant?',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18.sp,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            content: Text(
+                              'Are you sure you want to delete "${plant.name}"? This action cannot be undone.',
+                              style: GoogleFonts.poppins(fontSize: 14.sp),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(confirmContext, false),
+                                child: Text(
+                                  'Cancel',
+                                  style: GoogleFonts.poppins(color: Colors.grey),
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(confirmContext, true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: Text(
+                                  'Delete',
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirmed == true) {
+                        Navigator.pop(dialogContext, 'delete');
+                      }
+                    },
+                    icon: Icon(Icons.delete, size: 20.sp),
+                    label: Text(
+                      'Delete',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () {
-                  if (nameController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Please enter a plant name',
-                          style: GoogleFonts.poppins(),
+              SizedBox(height: 8.h),
+              // Second row: Centered Save Changes button
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Please enter a plant name',
+                            style: GoogleFonts.poppins(),
+                          ),
+                          backgroundColor: Colors.red,
                         ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-                  if (descriptionController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Please enter a description',
-                          style: GoogleFonts.poppins(),
+                      );
+                      return;
+                    }
+                    if (descriptionController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Please enter a description',
+                            style: GoogleFonts.poppins(),
+                          ),
+                          backgroundColor: Colors.red,
                         ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-                  Navigator.pop(dialogContext, true);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(
-                  'Save Changes',
-                  style: GoogleFonts.poppins(),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, true);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 12.h),
+                  ),
+                  child: Text(
+                    'Save Changes',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -229,7 +306,110 @@ Future<void> showEditPlantDialog(
     },
   );
 
-  if (result == true && context.mounted) {
+  if (result == 'delete' && context.mounted) {
+    // Handle plant deletion
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                SizedBox(height: 16.h),
+                Text(
+                  'Deleting plant...',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Delete the plant from Firebase
+      if (plant.id != null) {
+        final success = await plantService.deletePlant(plant.id!);
+        
+        // Close loading dialog
+        if (context.mounted) Navigator.pop(context);
+
+        if (success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Plant deleted successfully!',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          // Pop back to trigger refresh
+          Navigator.pop(context, true);
+        } else if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Failed to delete plant',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) Navigator.pop(context);
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: Text(
+                    'Failed to delete plant: $e',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    // Clean up controllers
+    nameController.dispose();
+    descriptionController.dispose();
+    careInstructionsController.dispose();
+  } else if (result == true && context.mounted) {
+    // Handle plant update
     // Show loading indicator
     showDialog(
       context: context,
