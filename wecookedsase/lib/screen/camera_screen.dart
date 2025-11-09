@@ -5,7 +5,14 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final String? plantId;
+  final String? plantName;
+  
+  const CameraScreen({
+    super.key,
+    this.plantId,
+    this.plantName,
+  });
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -65,7 +72,13 @@ class _CameraScreenState extends State<CameraScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Camera")),
+      appBar: AppBar(
+        title: Text(widget.plantName != null 
+          ? "Photo for ${widget.plantName}" 
+          : "Camera"),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
       body: FutureBuilder<void>(
         future: _initializeControllerFuture,
         builder: (context, snapshot) {

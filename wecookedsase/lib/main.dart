@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screen/camera_screen.dart';
+import 'screen/plant_photo_selector.dart';
 import 'package:velocity_x/velocity_x.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -126,7 +126,12 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: _screens[_currentIndex],
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _onCameraButtonPressed(context),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PlantPhotoSelector()),
+          );
+        },
         backgroundColor: Colors.deepPurple,
         elevation: 6,
         child: Icon(
@@ -510,9 +515,20 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => PlantsPage(
+              plantId: plant.id,
               plantName: plant.name,
               plantIcon: Icons.local_florist,
               plantColor: color,
+              plantDescription: plant.description,
+              plantLevel: plant.level,
+              plantXp: plant.xp,
+              plantGrowthProgress: plant.growthProgress,
+              plantWaterLevel: plant.waterLevel,
+              plantSunlight: plant.sunlight,
+              plantLastWatered: plant.lastWatered,
+              plantCareInstructions: plant.careInstructions,
+              plantCreatedAt: plant.createdAt,
+              plantUpdatedAt: plant.updatedAt,
             ),
           ),
         );
