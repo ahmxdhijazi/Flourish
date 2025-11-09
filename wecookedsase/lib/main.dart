@@ -16,6 +16,7 @@ import '../services/friend_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/leaderboard_page.dart';
 import 'garden.dart';
+import 'widgets/add_plant_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -254,78 +255,6 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          // Add Friend button (top right)
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1),
-            tooltip: 'Add Friend',
-            onPressed: () async {
-              final nameController = TextEditingController();
-
-              final friendName = await showDialog<String>(
-                context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: const Text('Add Friend'),
-                    content: TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Enter friend’s display name',
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, nameController.text.trim()),
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  );
-                },
-              );
-
-              if (friendName == null || friendName.isEmpty) return;
-
-              final firestore = FirebaseFirestore.instance;
-              final query = await firestore
-                  .collection('users')
-                  .where('displayName', isEqualTo: friendName)
-                  .get();
-
-              if (query.docs.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No user found with that name')),
-                );
-                return;
-              }
-
-              final friendDoc = query.docs.first;
-              final friendId = friendDoc.id;
-
-              await _friendService.sendFriendRequest(_currentUserId!, friendId);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Added $friendName as a friend!')),
-              );
-            },
-          ),
-
-          // Existing add button for sample plants
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: () async {
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              await _plantService.createSamplePlants(_userId!);
-              scaffoldMessenger.showSnackBar(
-                const SnackBar(content: Text('Sample plants created!')),
-              );
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -470,17 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: const Text('Add New Plant'),
                     prefix: const Icon(Icons.add),
                     style: FButtonStyle.outline,
-                    onPress: () async {
-                      // Add a new plant
-                      await _plantService.addPlant(
-                        Plant(
-                          name: 'New Plant ${DateTime.now().millisecond}',
-                          description: 'A newly added plant',
-                          colorHex: '#2196F3',
-                        ),
-                        _userId!,
-                      );
-                    },
+                    onPress: () => showAddPlantDialog(context, _userId!),
                   ),
                   SizedBox(height: 12.h),
                   FButton(

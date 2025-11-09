@@ -138,8 +138,8 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
       }
 
       // Create a unique filename with timestamp
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'plant_$timestamp.jpg';
+      final timestamp = DateTime.now();
+      final fileName = 'plant_${timestamp.toIso8601String()}.jpg';
       
       // Create reference to Firebase Storage location
       final storageRef = FirebaseStorage.instance

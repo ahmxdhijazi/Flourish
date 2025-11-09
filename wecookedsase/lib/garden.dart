@@ -6,6 +6,7 @@ import 'services/plant_service.dart';
 import 'services/user_service.dart';
 import 'models/plant_model.dart';
 import 'pages/plants_page.dart';
+import 'widgets/add_plant_dialog.dart';
 
 // Garden Screen
 class GardenScreen extends StatefulWidget {
@@ -223,7 +224,7 @@ class _GardenScreenState extends State<GardenScreen> {
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showCreatePlantDialog,
+        onPressed: () => showAddPlantDialog(context, _userId!),
         backgroundColor: Colors.deepPurple,
         elevation: 6,
         heroTag: 'gardenAddPlant', // Unique hero tag to avoid conflicts
