@@ -15,6 +15,7 @@ import 'login.dart';
 import '../services/friend_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/leaderboard_page.dart';
+import 'garden.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -102,17 +103,30 @@ class _MainNavigationState extends State<MainNavigation> {
     ProfileScreen(),
   ];
 
+  void _onCameraButtonPressed(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    if (user == null) {
+      // User is not signed in, show login screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    } else {
+      // User is signed in, open camera
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const CameraScreen()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CameraScreen()),
-          );
-        },
+        onPressed: () => _onCameraButtonPressed(context),
         backgroundColor: Colors.deepPurple,
         elevation: 6,
         child: Icon(
@@ -232,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "WeCooked",
+          "Flourish",
           style: GoogleFonts.poppins(
             fontSize: 24.sp,
             fontWeight: FontWeight.bold,

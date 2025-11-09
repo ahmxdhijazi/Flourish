@@ -1,10 +1,8 @@
 """
-WeCooked API - Food Image Analysis Backend
+WeCooked API - Plant Growth Stage Detection Backend
 
-IMPORTANT: Update these model IDs with your actual Roboflow model IDs!
-Find them in your Roboflow dashboard under each model's settings.
-
-Example format: "workspace-name/model-version" (e.g., "wecooked2026/1")
+Detects plant growth stages using Roboflow's plant-growth-stage-detection-ver2 model.
+Model detects: seedling, vegetative, flowering, and fruiting stages.
 """
 
 import os
@@ -19,8 +17,14 @@ from inference_sdk import InferenceHTTPClient
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-DETECTION_MODEL_ID = "plant-growth-stage-detection-ver2/1"  # Object detection model
-CLASSIFICATION_MODEL_ID = "car-colors-1smyc/5"  # Classification model
+# Plant growth stage detection model from Roboflow Universe
+PLANT_DETECTION_MODEL_ID = "plant-growth-stage-detection-ver2/1"
+DISEASE_DETECTION_MODEL_ID = "plant-disease-detection-qidwz/4"
+
+# Roboflow Workflows (if you want to use workflows instead of models)
+WORKFLOW_1_ID = "detect-and-classify"  # First workflow
+WORKFLOW_2_ID = "detect-and-classify-2"  # Second workflow (Detect and Classify 2)
+WORKSPACE_NAME = "wecooked2026"
 
 # 2. Connect to your workflow
 # This is your secret key. Keep it safe!
@@ -46,12 +50,10 @@ def allowed_file(filename):
 def hello_world():
     # This just proves the server is on
     return jsonify({ 
-        "message": "Hello! This fire ah API kitchen is open frfr!",
-        "current_model_ids": {
-            "detection": DETECTION_MODEL_ID,
-            "classification": CLASSIFICATION_MODEL_ID
-        },
-        "note": "If you're getting 404 errors, update these model IDs in app.py with your actual Roboflow model IDs"
+        "message": "Plant Growth Stage Detection API is running!",
+        "model": PLANT_DETECTION_MODEL_ID,
+        "detectable_stages": ["seedling", "vegetative", "flowering", "fruiting"],
+        "status": "ready"
     })
 
 
@@ -77,13 +79,13 @@ def analyze_image():
         print(f"Image saved to {image_path}")
 
         try:
-            # D. Use direct model inference instead of workflow
-            result = client.infer(image_path, model_id=DETECTION_MODEL_ID)
+            # D. Detect plant growth stages
+            result = client.infer(image_path, model_id=PLANT_DETECTION_MODEL_ID)
             
             # E. Clean up the uploaded file after
             os.remove(image_path)
 
-            # F. Send the Roboflow result back to your app!
+            # F. Send the results back to your app!
             return jsonify(result)
 
         except Exception as e:
@@ -99,8 +101,8 @@ def analyze_image():
                 return jsonify({ 
                     "error": error_message,
                     "help": {
-                        "message": "Model not found! You need to update the model ID in app.py",
-                        "current_model_id": DETECTION_MODEL_ID,
+                        "message": "Model not found! Check that the plant detection model is accessible.",
+                        "current_model_id": PLANT_DETECTION_MODEL_ID,
                     }
                 }), 404
             
@@ -110,12 +112,11 @@ def analyze_image():
         return jsonify({ "error": "File type not allowed" }), 400
 
 
-# Alternative endpoint: Detect AND classify sequentially
+# Alternative endpoint: Same as /analyze (kept for backwards compatibility)
 @app.route("/analyze-full", methods=['POST'])
 def analyze_full():
     """
-    This endpoint runs both detection and classification
-    by calling them one after another
+    Detects plant growth stages (same as /analyze endpoint)
     """
     if 'image' not in request.files:
         return jsonify({ "error": "No image file provided" }), 400
@@ -133,25 +134,85 @@ def analyze_full():
         print(f"Image saved to {image_path}")
 
         try:
-            # Step 1: Run detection (find food items)
-            detection_result = client.infer(image_path, model_id=DETECTION_MODEL_ID)
-            
-            # Step 2: Run classification (categorize the food)
-            classification_result = client.infer(image_path, model_id=CLASSIFICATION_MODEL_ID)
+            # Detect plant growth stages
+            result = client.infer(image_path, model_id=PLANT_DETECTION_MODEL_ID)
             
             # Clean up
             os.remove(image_path)
 
-            # Return both results
-            return jsonify({
-                "detection": detection_result,
-                "classification": classification_result
-            })
+            # Return results
+            return jsonify(result)
 
         except Exception as e:
             os.remove(image_path)
             print(f"Error during inference: {e}")
             return jsonify({ "error": str(e) }), 500
+
+    else:
+        return jsonify({ "error": "File type not allowed" }), 400
+
+# New endpoint: Run two MODELS on the same image (more reliable than workflows)
+@app.route("/analyze-dual-model", methods=['POST'])
+def analyze_dual_model():
+    """
+    Runs the same image through TWO different Roboflow models
+    and returns both results (more reliable than workflows)
+    """
+    if 'image' not in request.files:
+        return jsonify({ "error": "No image file provided" }), 400
+
+    file = request.files['image']
+
+    if file.filename == '':
+        return jsonify({ "error": "No selected file" }), 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(image_path)
+        
+        print(f"Image saved to {image_path}")
+
+        MODEL_1_ID = PLANT_DETECTION_MODEL_ID  # First model
+        MODEL_2_ID = DISEASE_DETECTION_MODEL_ID  # Second model
+        
+        model1_result = None
+        model2_result = None
+        errors = {}
+
+        try:
+            # Run first model
+            print(f"Running model 1: {MODEL_1_ID}")
+            model1_result = client.infer(image_path, model_id=MODEL_1_ID)
+        except Exception as e:
+            print(f"Model 1 error: {e}")
+            errors["model1"] = str(e)
+
+        try:
+            # Run second model
+            print(f"Running model 2: {MODEL_2_ID}")
+            model2_result = client.infer(image_path, model_id=MODEL_2_ID)
+        except Exception as e:
+            print(f"Model 2 error: {e}")
+            errors["model2"] = str(e)
+
+        # Clean up
+        os.remove(image_path)
+
+        # Return both results
+        return jsonify({
+            "model1": {
+                "id": MODEL_1_ID,
+                "result": model1_result,
+                "error": errors.get("model1")
+            },
+            "model2": {
+                "id": MODEL_2_ID,
+                "result": model2_result,
+                "error": errors.get("model2")
+            },
+            "success": len(errors) == 0
+        })
 
     else:
         return jsonify({ "error": "File type not allowed" }), 400
