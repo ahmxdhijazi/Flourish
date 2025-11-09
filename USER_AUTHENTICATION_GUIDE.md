@@ -1,13 +1,13 @@
 # User Authentication & Plant Data System Guide
 
-## 🔐 How It Works
+## How It Works
 
 ### Overview
 Your app now implements a complete user authentication system where each user's plants are stored separately and only visible to them after signing in through Firebase Authentication.
 
 ---
 
-## 📋 System Architecture
+## System Architecture
 
 ### 1. **Authentication Flow**
 
@@ -86,7 +86,7 @@ StreamBuilder<List<Plant>>(
 
 ---
 
-## 🔄 Complete User Journey
+## Complete User Journey
 
 ### **First-Time User:**
 1. Opens app → Sees **LoginScreen**
@@ -108,7 +108,7 @@ StreamBuilder<List<Plant>>(
 
 ---
 
-## 🛡️ Security Features
+## Security Features
 
 ### 1. **Data Isolation**
 - Each user's `userId` (Firebase UID) is unique and unchangeable
@@ -132,7 +132,7 @@ if (_userId == null) {
 
 ---
 
-## 📊 Database Structure
+## Database Structure
 
 ### Firestore Collection: `plants`
 ```
@@ -164,7 +164,7 @@ plants/
 
 ---
 
-## 🔧 Key Code Locations
+## Key Code Locations
 
 ### Main Authentication Logic:
 - **`lib/main.dart`**: 
@@ -186,7 +186,7 @@ plants/
 
 ---
 
-## 🎯 Testing the System
+## Testing the System
 
 ### Test User Isolation:
 1. **Create User A:**
@@ -205,7 +205,7 @@ plants/
 
 ---
 
-## 🚨 Important Notes
+## Important Notes
 
 ### Current User ID Retrieval:
 ```dart
@@ -228,7 +228,7 @@ _plantService.getUserPlants(_userId!)
 
 ---
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 ### Recommended Firestore Security Rules:
 ```javascript
@@ -252,7 +252,7 @@ This adds **server-side security** to prevent malicious clients from bypassing t
 
 ---
 
-## 📞 Troubleshooting
+## Troubleshooting
 
 ### "No plants showing after login"
 - Check Firebase Console → Firestore Database
@@ -271,14 +271,14 @@ This adds **server-side security** to prevent malicious clients from bypassing t
 
 ---
 
-## ✅ Summary
+## Summary
 
 Your app now has:
-- ✅ **Firebase Authentication** with email/password
-- ✅ **Automatic login state detection** with AuthWrapper
-- ✅ **User-specific plant data** (plants tied to user ID)
-- ✅ **Data isolation** (users only see their own plants)
-- ✅ **Persistent login** (stays logged in across app restarts)
-- ✅ **Secure logout** (clears data and returns to login screen)
+- **Firebase Authentication** with email/password
+- **Automatic login state detection** with AuthWrapper
+- **User-specific plant data** (plants tied to user ID)
+- **Data isolation** (users only see their own plants)
+- **Persistent login** (stays logged in across app restarts)
+- **Secure logout** (clears data and returns to login screen)
 
 Each user's plants are completely separate, stored in Firestore with their unique `userId`, and only visible when they're logged in!
