@@ -93,7 +93,7 @@ class _GardenScreenState extends State<GardenScreen> {
         return null;
       }
 
-      debugPrint('🔍 Fetching analysis for plant: $plantId, user: ${user.uid}');
+      debugPrint('Fetching analysis for plant: $plantId, user: ${user.uid}');
 
       // Simplified query without composite index requirement
       // Just filter by plantId and userId, then sort in memory
@@ -103,7 +103,7 @@ class _GardenScreenState extends State<GardenScreen> {
           .where('userId', isEqualTo: user.uid)
           .get();
 
-      debugPrint('📊 Found ${analysisSnapshot.docs.length} analysis documents for plant $plantId');
+      debugPrint('Found ${analysisSnapshot.docs.length} analysis documents for plant $plantId');
 
       if (analysisSnapshot.docs.isNotEmpty) {
         // Sort by timestamp in memory (client-side)
@@ -117,13 +117,13 @@ class _GardenScreenState extends State<GardenScreen> {
         final data = sortedDocs.first.data();
         final score = (data['overallScore'] as num?)?.toDouble();
         final stage = data['stage'] as String?;
-        debugPrint('✅ Latest analysis for plant $plantId: score=$score, stage=$stage');
+        debugPrint('Latest analysis for plant $plantId: score=$score, stage=$stage');
         return {
           'overallScore': score,
           'stage': stage,
         };
       }
-      debugPrint('❌ No analysis found for plant $plantId');
+      debugPrint('No analysis found for plant $plantId');
       return null;
     } catch (e) {
       debugPrint('Error fetching latest analysis for plant $plantId: $e');

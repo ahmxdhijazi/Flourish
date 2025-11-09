@@ -135,24 +135,24 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
   Future<void> _saveScoresToFirestore(PlantAnalysisResult scores) async {
     if (widget.plantId == null) {
-      debugPrint('⚠️ Cannot save scores: plantId is null');
+      debugPrint('Cannot save scores: plantId is null');
       return;
     }
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        debugPrint('⚠️ Cannot save scores: user not logged in');
+        debugPrint('Cannot save scores: user not logged in');
         return;
       }
 
-      debugPrint('💾 Saving scores to Firestore...');
-      debugPrint('  📍 PlantId: ${widget.plantId}');
-      debugPrint('  👤 UserId: ${user.uid}');
-      debugPrint('  📊 Overall Score: ${scores.overallScore}');
-      debugPrint('  💚 Health Score: ${scores.healthScore}');
-      debugPrint('  📈 Growth Score: ${scores.growthScore}');
-      debugPrint('  🌱 Stage: ${scores.stage}');
+      debugPrint('Saving scores to Firestore...');
+      debugPrint('  PlantId: ${widget.plantId}');
+      debugPrint('  UserId: ${user.uid}');
+      debugPrint('  Overall Score: ${scores.overallScore}');
+      debugPrint('  Health Score: ${scores.healthScore}');
+      debugPrint('  Growth Score: ${scores.growthScore}');
+      debugPrint('  Stage: ${scores.stage}');
 
       // Save to Firestore
       final docRef = await FirebaseFirestore.instance.collection('plant_analysis').add({
@@ -367,9 +367,9 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
             'latestImageUrl': downloadUrl,
             'updatedAt': Timestamp.fromDate(DateTime.now()),
           });
-          debugPrint('✅ Updated plant latestImageUrl in Firestore');
+          debugPrint('Updated plant latestImageUrl in Firestore');
         } catch (e) {
-          debugPrint('⚠️ Failed to update plant latestImageUrl: $e');
+          debugPrint('Failed to update plant latestImageUrl: $e');
         }
       }
 
