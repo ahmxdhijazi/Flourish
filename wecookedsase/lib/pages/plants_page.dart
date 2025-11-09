@@ -5,6 +5,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/calculateScores.dart';
+import '../widgets/edit_plant_dialog.dart';
+import '../models/plant_model.dart';
 
 class PlantsPage extends StatefulWidget {
   // Plant identification
@@ -53,10 +55,15 @@ class _PlantsPageState extends State<PlantsPage> {
   bool _hasImageToday = false;
   PlantAnalysisResult? _todayScores;
   bool _isLoadingScores = true;
+  DateTime _lastWatered;
+  bool _isWatering = false;
+
+  _PlantsPageState() : _lastWatered = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    _lastWatered = widget.plantLastWatered;
     _fetchTodayImage();
     _fetchTodayScores();
   }
@@ -138,6 +145,7 @@ class _PlantsPageState extends State<PlantsPage> {
 
   Future<void> _fetchTodayScores() async {
     if (widget.plantId == null) {
+      debugPrint('PlantsPage: No plantId provided');
       setState(() {
         _isLoadingScores = false;
       });
@@ -147,30 +155,51 @@ class _PlantsPageState extends State<PlantsPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
+        debugPrint('PlantsPage: No user logged in');
         setState(() {
           _isLoadingScores = false;
         });
         return;
       }
 
+      debugPrint('PlantsPage: Fetching scores for plant ${widget.plantId}, user ${user.uid}');
+
       // Get today's date
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
       final todayEnd = todayStart.add(const Duration(days: 1));
 
-      // Query Firestore for today's analysis results
+      debugPrint('PlantsPage: Querying for today: $todayStart to $todayEnd');
+
+      // Simplified query without composite index - filter by plantId and userId only
       final analysisSnapshot = await FirebaseFirestore.instance
           .collection('plant_analysis')
-          .where('userId', isEqualTo: user.uid)
           .where('plantId', isEqualTo: widget.plantId)
-          .where('timestamp', isGreaterThanOrEqualTo: todayStart)
-          .where('timestamp', isLessThan: todayEnd)
-          .orderBy('timestamp', descending: true)
-          .limit(1)
+          .where('userId', isEqualTo: user.uid)
           .get();
 
-      if (analysisSnapshot.docs.isNotEmpty) {
-        final data = analysisSnapshot.docs.first.data();
+      debugPrint('PlantsPage: Found ${analysisSnapshot.docs.length} total analysis documents');
+      
+      // Filter for today's date in memory
+      final todayDocs = analysisSnapshot.docs.where((doc) {
+        final timestamp = (doc.data()['timestamp'] as Timestamp?)?.toDate();
+        if (timestamp == null) return false;
+        return timestamp.isAfter(todayStart) && timestamp.isBefore(todayEnd);
+      }).toList();
+      
+      // Sort by timestamp descending
+      todayDocs.sort((a, b) {
+        final aTime = (a.data()['timestamp'] as Timestamp?)?.toDate() ?? DateTime(1970);
+        final bTime = (b.data()['timestamp'] as Timestamp?)?.toDate() ?? DateTime(1970);
+        return bTime.compareTo(aTime);
+      });
+
+      debugPrint('PlantsPage: Found ${todayDocs.length} analysis documents for today');
+
+      if (todayDocs.isNotEmpty) {
+        final data = todayDocs.first.data();
+        
+        debugPrint('PlantsPage: Analysis data: $data');
         
         // Reconstruct PlantAnalysisResult from Firestore data
         final scores = PlantAnalysisResult(
@@ -188,15 +217,16 @@ class _PlantsPageState extends State<PlantsPage> {
           _isLoadingScores = false;
         });
 
-        debugPrint('Loaded today\'s scores - Overall: ${scores.overallScore.toStringAsFixed(1)}');
+        debugPrint('PlantsPage: Loaded today\'s scores - Overall: ${scores.overallScore.toStringAsFixed(1)}');
       } else {
         setState(() {
           _isLoadingScores = false;
         });
-        debugPrint('No analysis found for today');
+        debugPrint('PlantsPage: No analysis found for today');
       }
-    } catch (e) {
-      debugPrint('Error fetching today\'s scores: $e');
+    } catch (e, stackTrace) {
+      debugPrint('PlantsPage: Error fetching today\'s scores: $e');
+      debugPrint('PlantsPage: Stack trace: $stackTrace');
       setState(() {
         _isLoadingScores = false;
       });
@@ -399,7 +429,7 @@ class _PlantsPageState extends State<PlantsPage> {
                   SizedBox(height: 12.h),
                   _buildStatRow('Sunlight', widget.plantSunlight, Icons.wb_sunny),
                   SizedBox(height: 12.h),
-                  _buildStatRow('Last Watered', _formatDate(widget.plantLastWatered), Icons.schedule),
+                  _buildStatRow('Last Watered', _formatDate(_lastWatered), Icons.schedule),
                 ],
               ),
             ),
@@ -503,21 +533,32 @@ class _PlantsPageState extends State<PlantsPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // Water plant action
-                      },
-                      icon: const Icon(Icons.water_drop),
-                      label: Text(
-                        'Water Plant',
-                        style: GoogleFonts.poppins(fontSize: 14.sp),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isWatering ? null : _waterPlant,
+                        icon: _isWatering
+                            ? SizedBox(
+                                width: 20.sp,
+                                height: 20.sp,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.water_drop),
+                        label: Text(
+                          _isWatering ? 'Watering...' : 'Water Plant',
+                          style: GoogleFonts.poppins(fontSize: 14.sp),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 16.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          disabledBackgroundColor: Colors.blue.shade300,
                         ),
                       ),
                     ),
@@ -525,12 +566,10 @@ class _PlantsPageState extends State<PlantsPage> {
                   SizedBox(width: 12.w),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Add note action
-                      },
-                      icon: const Icon(Icons.edit_note),
+                      onPressed: () => _editPlant(),
+                      icon: const Icon(Icons.edit),
                       label: Text(
-                        'Add Note',
+                        'Edit Plant',
                         style: GoogleFonts.poppins(fontSize: 14.sp),
                       ),
                       style: OutlinedButton.styleFrom(
@@ -605,12 +644,111 @@ class _PlantsPageState extends State<PlantsPage> {
     );
   }
 
+  Future<void> _waterPlant() async {
+    if (widget.plantId == null || _isWatering) return;
+
+    setState(() {
+      _isWatering = true;
+    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Update Firestore with new lastWatered timestamp
+      await FirebaseFirestore.instance
+          .collection('plants')
+          .doc(widget.plantId)
+          .update({
+        'lastWatered': Timestamp.fromDate(DateTime.now()),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+
+      // Update local state
+      setState(() {
+        _lastWatered = DateTime.now();
+        _isWatering = false;
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12.w),
+                Text(
+                  '${widget.plantName} has been watered! 💧',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error watering plant: $e');
+      setState(() {
+        _isWatering = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to water plant: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _editPlant() async {
+    if (widget.plantId == null) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Create Plant object from current widget data
+    final plant = Plant(
+      id: widget.plantId,
+      name: widget.plantName,
+      description: widget.plantDescription,
+      colorHex: '#${widget.plantColor.value.toRadixString(16).substring(2).toUpperCase()}',
+      careInstructions: widget.plantCareInstructions,
+      level: widget.plantLevel,
+      xp: widget.plantXp,
+      growthProgress: widget.plantGrowthProgress,
+      waterLevel: widget.plantWaterLevel,
+      sunlight: widget.plantSunlight,
+      lastWatered: widget.plantLastWatered,
+      createdAt: widget.plantCreatedAt,
+      updatedAt: widget.plantUpdatedAt,
+    );
+
+    // Show edit dialog (it will handle popping back on success)
+    await showEditPlantDialog(context, plant, user.uid);
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
     
     if (difference.inDays == 0) {
       if (difference.inHours == 0) {
+        if (difference.inMinutes == 0) {
+          return 'Just now';
+        }
         return '${difference.inMinutes}m ago';
       }
       return '${difference.inHours}h ago';

@@ -40,8 +40,12 @@ class PlantScoreCalculator {
 
     try {
       // Extract data from the dual model response
-      final model1 = apiResponse['model_1'] as Map<String, dynamic>?;
-      final model2 = apiResponse['model_2'] as Map<String, dynamic>?;
+      // API returns: { "model1": { "result": { "predictions": [...] } } }
+      final model1Data = apiResponse['model1'] as Map<String, dynamic>?;
+      final model2Data = apiResponse['model2'] as Map<String, dynamic>?;
+      
+      final model1Result = model1Data?['result'] as Map<String, dynamic>?;
+      final model2Result = model2Data?['result'] as Map<String, dynamic>?;
 
       // Initialize scores
       double healthScore = 0.0;
@@ -51,9 +55,9 @@ class PlantScoreCalculator {
       double confidence = 0.0;
       List<String> recommendations = [];
 
-      // Process Model 1 results (primary detection)
-      if (model1 != null && model1['predictions'] != null) {
-        final predictions = model1['predictions'] as List<dynamic>;
+      // Process Model 1 results (primary detection - growth stage)
+      if (model1Result != null && model1Result['predictions'] != null) {
+        final predictions = model1Result['predictions'] as List<dynamic>;
         
         if (predictions.isNotEmpty) {
           final topPrediction = predictions[0] as Map<String, dynamic>;
@@ -73,24 +77,33 @@ class PlantScoreCalculator {
         }
       }
 
-      // Process Model 2 results (secondary analysis)
-      if (model2 != null && model2['predictions'] != null) {
-        final predictions = model2['predictions'] as List<dynamic>;
+      // Process Model 2 results (secondary analysis - disease/health detection)
+      if (model2Result != null && model2Result['predictions'] != null) {
+        final predictions = model2Result['predictions'] as List<dynamic>;
         
         if (predictions.isNotEmpty) {
+          // Disease detected - deduct from health score based on confidence
           final topPrediction = predictions[0] as Map<String, dynamic>;
           
           final detectedClass = topPrediction['class'] as String? ?? 'Unknown';
           final model2Confidence = (topPrediction['confidence'] as num?)?.toDouble() ?? 0.0;
           
-          debugPrint('Model 2 - Class: $detectedClass, Confidence: $model2Confidence');
+          debugPrint('Model 2 - Disease Detected: $detectedClass, Confidence: $model2Confidence');
           
-          // Calculate health score based on model 2 results
-          healthScore = _calculateHealthScore(detectedClass, model2Confidence);
+          // Calculate health score with disease penalty
+          healthScore = _calculateHealthScoreWithDisease(detectedClass, model2Confidence);
           
           // Add health-based recommendations
           recommendations.addAll(_getHealthRecommendations(detectedClass, healthScore));
+        } else {
+          // No disease detected - plant is healthy
+          debugPrint('Model 2 - No disease detected, plant is healthy');
+          healthScore = 90.0; // High base health score when no disease
+          recommendations.add('No diseases detected - plant appears healthy!');
         }
+      } else {
+        // Model 2 data not available - assume healthy
+        healthScore = 85.0;
       }
 
       // Calculate overall score (weighted average)
@@ -184,28 +197,40 @@ class PlantScoreCalculator {
     return (baseScore * stageMultiplier).clamp(0.0, 100.0);
   }
 
-  /// Calculate health score based on detected class and confidence
-  static double _calculateHealthScore(String detectedClass, double confidence) {
-    final lowerClass = detectedClass.toLowerCase();
+  /// Calculate health score when disease is detected (model2 has predictions)
+  /// The presence of predictions means disease was detected, so we deduct points
+  static double _calculateHealthScoreWithDisease(String detectedClass, double confidence) {
+    // Start with base healthy score
+    double baseHealth = 100.0;
     
-    // Check for health indicators in the class name
-    if (lowerClass.contains('healthy') || lowerClass.contains('good')) {
-      return (confidence * 100).clamp(70.0, 100.0);
-    } else if (lowerClass.contains('disease') || lowerClass.contains('pest') || 
-               lowerClass.contains('damage')) {
-      return (50.0 - (confidence * 30)).clamp(20.0, 50.0);
-    } else if (lowerClass.contains('stress') || lowerClass.contains('nutrient')) {
-      return (60.0 - (confidence * 20)).clamp(40.0, 60.0);
+    // Deduct points based on confidence of disease detection
+    // Higher confidence = more severe deduction
+    double deduction = confidence * 60; // Max deduction of 60 points at 100% confidence
+    
+    // Additional deduction based on disease severity from class name
+    final lowerClass = detectedClass.toLowerCase();
+    double severityMultiplier = 1.0;
+    
+    if (lowerClass.contains('severe') || lowerClass.contains('blight') || 
+        lowerClass.contains('rot')) {
+      severityMultiplier = 1.3; // More severe diseases
+    } else if (lowerClass.contains('mild') || lowerClass.contains('spot')) {
+      severityMultiplier = 0.7; // Less severe diseases
     }
     
-    // Default: calculate based on confidence
-    return (confidence * 85).clamp(50.0, 85.0);
+    // Apply deduction
+    final healthScore = baseHealth - (deduction * severityMultiplier);
+    
+    debugPrint('Health Calculation - Base: $baseHealth, Deduction: ${deduction * severityMultiplier}, Final: $healthScore');
+    
+    return healthScore.clamp(20.0, 100.0);
   }
 
   /// Calculate overall score (weighted average of health and growth)
   static double _calculateOverallScore(double healthScore, double growthScore, double confidence) {
-    // Weighted average: 50% health, 40% growth, 10% confidence
-    final score = (healthScore * 0.5) + (growthScore * 0.4) + (confidence * 100 * 0.1);
+    // Weighted average: 55% health, 40% growth, 5% confidence
+    // Reduced confidence weight to have less impact on final score
+    final score = (healthScore * 0.55) + (growthScore * 0.40) + (confidence * 100 * 0.05);
     return score.clamp(0.0, 100.0);
   }
 
@@ -252,14 +277,14 @@ class PlantScoreCalculator {
     final recommendations = <String>[];
     
     if (healthScore < 50) {
-      recommendations.add('⚠️ Plant health needs attention');
+      recommendations.add('Plant health needs attention');
       recommendations.add('Check for pests, diseases, or nutrient deficiencies');
       recommendations.add('Consider adjusting watering or light conditions');
     } else if (healthScore < 70) {
       recommendations.add('Plant health is moderate - monitor closely');
       recommendations.add('Ensure proper care routine is maintained');
     } else {
-      recommendations.add('✅ Plant appears healthy!');
+      recommendations.add('Plant appears healthy!');
       recommendations.add('Continue current care routine');
     }
     
@@ -269,11 +294,11 @@ class PlantScoreCalculator {
   /// Get general recommendations based on overall score
   static List<String> _getGeneralRecommendations(double overallScore) {
     if (overallScore >= 80) {
-      return ['🌟 Excellent progress! Keep up the great work!'];
+      return ['Excellent progress! Keep up the great work!'];
     } else if (overallScore >= 60) {
-      return ['📈 Good progress - minor improvements possible'];
+      return ['Good progress - minor improvements possible'];
     } else {
-      return ['💡 Consider reviewing care instructions for optimal growth'];
+      return ['Consider reviewing care instructions for optimal growth'];
     }
   }
 }

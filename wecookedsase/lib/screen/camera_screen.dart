@@ -134,14 +134,28 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   PlantAnalysisResult? _plantScores;
 
   Future<void> _saveScoresToFirestore(PlantAnalysisResult scores) async {
-    if (widget.plantId == null) return;
+    if (widget.plantId == null) {
+      debugPrint('⚠️ Cannot save scores: plantId is null');
+      return;
+    }
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        debugPrint('⚠️ Cannot save scores: user not logged in');
+        return;
+      }
+
+      debugPrint('💾 Saving scores to Firestore...');
+      debugPrint('  📍 PlantId: ${widget.plantId}');
+      debugPrint('  👤 UserId: ${user.uid}');
+      debugPrint('  📊 Overall Score: ${scores.overallScore}');
+      debugPrint('  💚 Health Score: ${scores.healthScore}');
+      debugPrint('  📈 Growth Score: ${scores.growthScore}');
+      debugPrint('  🌱 Stage: ${scores.stage}');
 
       // Save to Firestore
-      await FirebaseFirestore.instance.collection('plant_analysis').add({
+      final docRef = await FirebaseFirestore.instance.collection('plant_analysis').add({
         'userId': user.uid,
         'plantId': widget.plantId,
         'timestamp': DateTime.now(),
@@ -154,9 +168,9 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
         'rawData': scores.rawData,
       });
 
-      debugPrint('Scores saved to Firestore successfully');
+      debugPrint('✅ Scores saved to Firestore successfully! Doc ID: ${docRef.id}');
     } catch (e) {
-      debugPrint('Error saving scores to Firestore: $e');
+      debugPrint('❌ Error saving scores to Firestore: $e');
     }
   }
 
@@ -166,10 +180,13 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     });
 
     try {
-      // For iOS simulator/device and macOS, use the host machine's actual IP
-      // For Android emulator, use 10.0.2.2
-      // For physical devices, use your computer's local IP address
-      String baseUrl = '167.96.170.255:5000'; // Your machine's local IP
+      // Backend addresses - switch baseUrl value to test different options
+      const String backendIP1 = '192.168.0.158:5000'; // Network IP (current machine)
+      const String backendIP2 = '167.96.170.255:5000'; // Alternative IP  
+      const String localhost = '127.0.0.1:5000'; // Loopback (may not work with iOS simulator)
+      
+      // iOS simulator can't always reach 127.0.0.1, use network IP instead
+      String baseUrl = backendIP1; // <-- Using network IP for iOS simulator
       if (Platform.isAndroid) {
         baseUrl = '10.0.2.2:5000'; // Android emulator
       }
