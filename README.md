@@ -35,14 +35,41 @@ cd WeCooked-SASE2025/wecookedsase
 ```bash
 flutter pub get
 ```
+3. Run backend server
+```bash
+cd WeCooked-SASE2025/wecookedapi
+```
 
-3. Setup Firebase
-- Create a new Firebase project
-- Add your iOS/Android apps
-- Download and add configuration files
-- Enable Authentication, Firestore, and Storage
+4. Set up a Python virtual environment
 
-4. Run the app
+## Windows
+```bash
+python -m venv venv
+```
+
+## macOS
+```bash
+python3 -m venv venv
+```
+
+5. Activate the virtual environment and install requirements
+
+## Windows
+```bash
+venv/Scripts/Activate && pip install -r requirements.txt
+```
+
+## macOS
+```bash
+source venv/bin/activate && pip install -r requirements.txt
+```
+
+6. Run the backend
+```bash
+python app.py
+```
+
+8. Run the app
 ```bash
 flutter run
 ```
