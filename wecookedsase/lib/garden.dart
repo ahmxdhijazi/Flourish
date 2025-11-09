@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/plant_service.dart';
 import 'services/user_service.dart';
 import 'models/plant_model.dart';
@@ -80,6 +81,58 @@ class _GardenScreenState extends State<GardenScreen> {
           ),
         );
       }
+    }
+  }
+
+  /// Fetch the latest overall score for a specific plant
+  Future<double?> _fetchLatestScore(String plantId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint('No user logged in, cannot fetch scores');
+        return null;
+      }
+
+      debugPrint('🔍 Fetching score for plant: $plantId, user: ${user.uid}');
+
+      // Simplified query without composite index requirement
+      // Just filter by plantId and userId, then sort in memory
+      final analysisSnapshot = await FirebaseFirestore.instance
+          .collection('plant_analysis')
+          .where('plantId', isEqualTo: plantId)
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      debugPrint('📊 Found ${analysisSnapshot.docs.length} analysis documents for plant $plantId');
+
+      if (analysisSnapshot.docs.isNotEmpty) {
+        // Debug: Print all document data
+        for (var doc in analysisSnapshot.docs) {
+          final docData = doc.data();
+          debugPrint('  📄 Doc ID: ${doc.id}');
+          debugPrint('  📄 PlantId: ${docData['plantId']}');
+          debugPrint('  📄 Score: ${docData['overallScore']}');
+          debugPrint('  📄 Timestamp: ${docData['timestamp']}');
+        }
+        
+        // Sort by timestamp in memory (client-side)
+        final sortedDocs = analysisSnapshot.docs
+          ..sort((a, b) {
+            final aTime = (a.data()['timestamp'] as Timestamp?)?.toDate() ?? DateTime(1970);
+            final bTime = (b.data()['timestamp'] as Timestamp?)?.toDate() ?? DateTime(1970);
+            return bTime.compareTo(aTime); // Descending order
+          });
+        
+        final data = sortedDocs.first.data();
+        final score = (data['overallScore'] as num?)?.toDouble();
+        debugPrint('✅ Latest score for plant $plantId: $score');
+        return score;
+      }
+      debugPrint('❌ No analysis found for plant $plantId');
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching latest score for plant $plantId: $e');
+      return null;
     }
   }
 
@@ -415,7 +468,14 @@ class _GardenScreenState extends State<GardenScreen> {
                               );
                               final isFavorite = favorites.contains(plant.id);
                               
-                              return _buildPlantCard(plant, color, isFavorite);
+                              // Use FutureBuilder to fetch the latest score
+                              return FutureBuilder<double?>(
+                                future: plant.id != null ? _fetchLatestScore(plant.id!) : null,
+                                builder: (context, scoreSnapshot) {
+                                  final score = scoreSnapshot.data;
+                                  return _buildPlantCard(plant, color, isFavorite, score);
+                                },
+                              );
                             },
                           );
                         },
@@ -428,7 +488,7 @@ class _GardenScreenState extends State<GardenScreen> {
     );
   }
 
-  Widget _buildPlantCard(Plant plant, Color color, bool isFavorite) {
+  Widget _buildPlantCard(Plant plant, Color color, bool isFavorite, double? score) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -571,6 +631,45 @@ class _GardenScreenState extends State<GardenScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              // Latest Score Badge (if available)
+              if (score != null) ...[
+                Container(
+                  margin: EdgeInsets.only(bottom: 12.h),
+                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _getScoreColor(score).withValues(alpha: 0.2),
+                        _getScoreColor(score).withValues(alpha: 0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: _getScoreColor(score).withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.analytics,
+                        size: 16.sp,
+                        color: _getScoreColor(score),
+                      ),
+                      SizedBox(width: 6.w),
+                      Text(
+                        'Health Score: ${score.toStringAsFixed(0)}/100',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                          color: _getScoreColor(score),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               // Stats Row
               Row(
                 children: [
@@ -620,5 +719,16 @@ class _GardenScreenState extends State<GardenScreen> {
         ),
       ],
     );
+  }
+
+  /// Get color based on score value
+  Color _getScoreColor(double score) {
+    if (score >= 80) {
+      return Colors.green;
+    } else if (score >= 60) {
+      return Colors.orange;
+    } else {
+      return Colors.red;
+    }
   }
 }
