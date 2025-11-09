@@ -19,6 +19,7 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
   final _firestore = FirebaseFirestore.instance;
 
   List<Map<String, dynamic>> leaderboardData = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
           await _firestore.collection('users').doc(_currentUserId).get();
       final friends = List<String>.from(userDoc.data()?['friends'] ?? []);
       friends.add(_currentUserId!); // include self
+      debugPrint("🔍 LEADERBOARD: Found ${friends.length} users (including self): $friends");
 
       if (friends.isEmpty) return;
 
@@ -44,8 +46,10 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
           .where('userId',
               whereIn: friends.length > 10 ? friends.sublist(0, 10) : friends)
           .get();
+      debugPrint("🔍 LEADERBOARD: Found ${plantsQuery.docs.length} plants");
 
       final analysisQuery = await _firestore.collection('plant_analysis').get();
+      debugPrint("🔍 LEADERBOARD: Found ${analysisQuery.docs.length} analyses");
 
       // 3️⃣ Build map of plantId → overallScore
       final Map<String, double> plantScores = {};
@@ -66,6 +70,8 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
         final score = plantScores[plantId] ?? 0.0;
         userScores.putIfAbsent(userId, () => []).add(score);
       }
+      debugPrint("🔍 LEADERBOARD: Grouped scores for ${userScores.length} users");
+      debugPrint("🔍 LEADERBOARD: User scores breakdown: $userScores");
 
       // 5️⃣ Calculate Flourish Score
       final leaderboard = <Map<String, dynamic>>[];
@@ -126,11 +132,17 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
                     : '👤';
       }
 
+      debugPrint("🔍 LEADERBOARD: Final leaderboard has ${leaderboard.length} entries");
       setState(() {
         leaderboardData = leaderboard;
+        _isLoading = false;
       });
     } catch (e) {
       debugPrint("❌ Error loading leaderboard: $e");
+      debugPrint("❌ Stack trace: ${StackTrace.current}");
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -161,20 +173,28 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
           ),
         ],
       ),
-      body: leaderboardData.isEmpty
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : leaderboardData.isEmpty
+              ? _buildEmptyState()
+              : SingleChildScrollView(
               child: Column(
                 children: [
+                  // Show podium for top 3 if we have 3+ entries
                   if (leaderboardData.length >= 3) _buildPodiumSection(),
-                  SizedBox(height: 20.h),
+                  // Show remaining entries after top 3, or all entries if less than 3
+                  if (leaderboardData.length >= 3) SizedBox(height: 20.h),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
                     child: Column(
-                      children: leaderboardData
-                          .skip(3)
-                          .map((entry) => _buildLeaderboardTile(entry))
-                          .toList(),
+                      children: leaderboardData.length >= 3
+                          ? leaderboardData
+                              .skip(3)
+                              .map((entry) => _buildLeaderboardTile(entry))
+                              .toList()
+                          : leaderboardData
+                              .map((entry) => _buildLeaderboardTile(entry))
+                              .toList(),
                     ),
                   ),
                 ],
@@ -358,6 +378,43 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
           if (entry['rank'] <= 10)
             Icon(Icons.emoji_events, color: Colors.amber, size: 24.sp),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(32.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 80.sp,
+              color: Colors.grey.shade400,
+            ),
+            SizedBox(height: 24.h),
+            Text(
+              'No Leaderboard Data',
+              style: GoogleFonts.poppins(
+                fontSize: 24.sp,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 12.h),
+            Text(
+              'Start adding friends and growing plants to see the leaderboard!',
+              style: GoogleFonts.poppins(
+                fontSize: 14.sp,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
