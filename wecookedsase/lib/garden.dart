@@ -45,15 +45,32 @@ class _GardenScreenState extends State<GardenScreen> {
   }
 
   Future<void> _toggleFavorite(String plantId, bool isFavorite) async {
-    if (_userId == null) return;
+    // Get fresh userId from FirebaseAuth to ensure we're using the current user
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    
+    if (currentUserId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in to use favorites'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Debug: Print the userId being used
+    print('Toggle favorite - UserId: $currentUserId, PlantId: $plantId, IsFavorite: $isFavorite');
 
     try {
       if (isFavorite) {
-        await _userService.removeFromFavorites(_userId!, plantId);
+        await _userService.removeFromFavorites(currentUserId, plantId);
       } else {
-        await _userService.addToFavorites(_userId!, plantId);
+        await _userService.addToFavorites(currentUserId, plantId);
       }
     } catch (e) {
+      print('Error toggling favorite: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -209,6 +226,7 @@ class _GardenScreenState extends State<GardenScreen> {
         onPressed: _showCreatePlantDialog,
         backgroundColor: Colors.deepPurple,
         elevation: 6,
+        heroTag: 'gardenAddPlant', // Unique hero tag to avoid conflicts
         child: Icon(
           Icons.add,
           color: Colors.white,
