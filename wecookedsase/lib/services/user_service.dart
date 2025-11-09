@@ -59,18 +59,22 @@ class UserService {
 
   // Add plant to favorites
   Future<void> addToFavorites(String userId, String plantId) async {
+    print('UserService.addToFavorites - UserId: $userId, PlantId: $plantId');
     // Use set with merge to create favorites field if it doesn't exist
     await _firestore.collection('users').doc(userId).set({
       'favorites': FieldValue.arrayUnion([plantId]),
     }, SetOptions(merge: true));
+    print('UserService.addToFavorites - Success');
   }
 
   // Remove plant from favorites
   Future<void> removeFromFavorites(String userId, String plantId) async {
+    print('UserService.removeFromFavorites - UserId: $userId, PlantId: $plantId');
     // Use set with merge to handle the case where favorites field might not exist
     await _firestore.collection('users').doc(userId).set({
       'favorites': FieldValue.arrayRemove([plantId]),
     }, SetOptions(merge: true));
+    print('UserService.removeFromFavorites - Success');
   }
 
   // Check if plant is in favorites
