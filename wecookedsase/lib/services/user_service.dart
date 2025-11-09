@@ -22,7 +22,7 @@ class UserService {
       profileImageUrl = await storageRef.getDownloadURL();
     }
     
-    final String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now())
+    final String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     // Create user profile document
     await _firestore.collection('users').doc(userId).set({
       'displayName': displayName,
