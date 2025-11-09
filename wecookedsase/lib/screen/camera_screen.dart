@@ -134,8 +134,10 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     });
 
     try {
+      // Use localhost for desktop platforms (works on both Mac and Windows)
+      // For mobile/web testing, replace with your machine's IP address
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/analyze-dual-model'),
+        Uri.parse('http://localhost:5000/analyze-dual-model'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'imageURL': imageUrl}),
       );
