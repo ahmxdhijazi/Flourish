@@ -10,10 +10,13 @@ import 'package:image_picker/image_picker.dart';
 import 'auth.dart';
 import 'login.dart';
 import 'services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- Make sure this is imported
 
 // Profile Screen
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  // --- FIX: Accept the userId from MainNavigation ---
+  final String userId;
+  const ProfileScreen({super.key, required this.userId});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -80,6 +83,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (pickedFile != null) {
+        // --- NOTE: This should probably call an updateUserProfile function ---
+        // But if createUserProfile handles updates, this is okay.
         await _userService.createUserProfile(
           userId: user.uid,
           displayName: user.displayName ?? "Anonymous User",
@@ -102,10 +107,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _removePhoto(BuildContext context, User user) async {
     try {
       setState(() => _isLoading = true);
+      // --- NOTE: This should probably call an updateUserProfile function ---
       await _userService.createUserProfile(
         userId: user.uid,
         displayName: user.displayName ?? "Anonymous User",
-        profileImage: null,
+        profileImage: null, // This removes the photo
       );
     } catch (e) {
       if (mounted) {
@@ -122,16 +128,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: Auth().authStateChanges,
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return _buildAuthenticatedProfile(context, snapshot.data!);
-        } else {
-          return _buildUnauthenticatedProfile(context);
-        }
-      },
-    );
+    // --- FIX: Remove the redundant StreamBuilder ---
+    // We already know the user is authenticated because
+    // AuthWrapper sent us a valid widget.userId.
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    // Handle the edge case where the user somehow got here but is null
+    // or doesn't match the ID we were given (which would be a bug).
+    if (user == null || user.uid != widget.userId) {
+      // This user doesn't match, or is null. Show the "unauthenticated" view.
+      return _buildUnauthenticatedProfile(context);
+    }
+
+    // We have the correct user, build the real profile
+    return _buildAuthenticatedProfile(context, user);
   }
 
   Widget _buildAuthenticatedProfile(BuildContext context, User user) {
@@ -208,96 +218,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       )
                                     : null,
                           ),
-                          if (!_isLoading)
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                padding: EdgeInsets.all(4.r),
-                                decoration: const BoxDecoration(
-                                  color: Colors.deepPurple,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.edit,
-                                  size: 16.r,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-
-                    16.h.heightBox,
-
-                    Text(
-                      user.displayName ?? "Anonymous User",
-                      style: GoogleFonts.poppins(
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      user.email ?? "",
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    8.h.heightBox,
-                    if (!user.emailVerified) ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            size: 16.sp,
-                            color: Colors.orange,
-                          ),
-                          4.w.widthBox,
-                          Text(
-                            'Email not verified',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontSize: 12.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                      8.h.heightBox,
-                      TextButton(
-                        onPressed: () async {
-                          final scaffoldMessenger =
-                              ScaffoldMessenger.of(context);
-                          try {
-                            await Auth().sendEmailVerification();
-                            if (mounted) {
-                              scaffoldMessenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Verification email sent'),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              scaffoldMessenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Failed to send verification email. Please try again later.'),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        child: Text(
-                          'Resend verification email',
-                          style: TextStyle(
-                            color: Colors.deepPurple,
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
+                          child: Icon(
+                            Icons.edit,
+                            size: 16.r,
+    
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -469,7 +394,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ],
                 ),
-              ).px16(),
+              ],
+            ],
+          ),
+        ).px16(),
+        
+        30.h.heightBox,
+        
+        // --- FIX: Add a StreamBuilder to show REAL data ---
+        StreamBuilder<DocumentSnapshot>(
+          // Use the userId we passed in!
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .snapshots(),
+          builder: (context, snapshot) {
+            // Set default values while loading
+            String plantsCount = "...";
+            String daysActive = "...";
+            String streakCount = "..."; // We can get the streak here too!
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              // We have data! Get the real values.
+              var data = snapshot.data!.data() as Map<String, dynamic>;
+              plantsCount = (data['plants'] ?? 0).toString();
+              daysActive = (data['daysActive'] ?? 0).toString();
+              streakCount = (data['streakCount'] ?? 0).toString();
+            }
+
+            return FCard(
+              child: Padding(
+                padding: EdgeInsets.all(20.w),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildStatCard(plantsCount, "Plants"),
+                    _buildStatCard(streakCount, "Streak"), // <-- Now it's real
+                    _buildStatCard(daysActive, "Days Active"),
+                  ],
+                ),
+              ),
+            ).px(16.w);
+          },
+        ),
+        
+        30.h.heightBox,
+        
+        // Menu Items
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          child: Column(
+            children: [
 
               30.h.heightBox,
 

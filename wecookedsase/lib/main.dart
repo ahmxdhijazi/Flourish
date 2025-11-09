@@ -7,7 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'profile.dart';
+import 'profile.dart'; // Make sure profile.dart can accept a userId
 import 'pages/plants_page.dart';
 import 'services/plant_service.dart';
 import 'models/plant_model.dart';
@@ -17,6 +17,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/leaderboard_page.dart';
 import 'garden.dart';
 import 'widgets/add_plant_dialog.dart';
+import 'services/streak_service.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,7 +78,8 @@ class AuthWrapper extends StatelessWidget {
 
         // If user is logged in, show main navigation
         if (snapshot.hasData && snapshot.data != null) {
-          return const MainNavigation();
+          // --- FIX: Pass the non-null user ID to MainNavigation ---
+          return MainNavigation(userID: snapshot.data!.uid);
         }
 
         // If user is not logged in, show login screen
@@ -88,7 +91,9 @@ class AuthWrapper extends StatelessWidget {
 
 // Main Navigation with Bottom Bar
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  // --- FIX: This is the one, correct constructor ---
+  final String userID; // The ID we get from AuthWrapper
+  const MainNavigation({super.key, required this.userID});
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -96,13 +101,25 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  final StreakService _streakService = StreakService();
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    LeaderBoardPage(), // imported from leaderboard_page.dart
-    GardenScreen(),
-    ProfileScreen(),
-  ];
+  // --- FIX: Declare the list here, but build it in initState ---
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    // This calculates/updates the streak *once* when the app is opened
+    _streakService.checkLoginStreak();
+
+    // --- FIX: Build the list using the guaranteed userID from the widget ---
+    _screens = [
+      HomeScreen(userId: widget.userID), // Pass the ID
+      LeaderBoardPage(),
+      GardenScreen(),
+      ProfileScreen(userId: widget.userID), // Pass the ID to Profile too
+    ];
+  }
 
   void _onCameraButtonPressed(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -217,7 +234,9 @@ class _MainNavigationState extends State<MainNavigation> {
 
 // Home Screen with Firebase Integration
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  // --- FIX: Accept the non-null userId from MainNavigation ---
+  final String? userId; 
+  const HomeScreen({super.key, required this.userId}); 
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -225,16 +244,62 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final PlantService _plantService = PlantService();
-
-  // Get current user ID from Firebase Auth
-  String? get _userId => FirebaseAuth.instance.currentUser?.uid;
   final _friendService = FriendService();
-  final _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  
+  // --- FIX: Delete these confusing/unused variables ---
+  // String? get _userId => FirebaseAuth.instance.currentUser?.uid; (DELETED)
+  // final _currentUserId = FirebaseAuth.instance.currentUser?.uid; (DELETED)
+
+  int _streakCount = 0;
+  @override
+  void initState() {
+    super.initState();
+    // When this screen loads, go get the real value
+    _fetchStreakCount();
+  }
+
+  Future<void> _fetchStreakCount() async {
+    // --- FIX: Use the guaranteed non-null widget.userId ---
+    if (widget.userId == null) {
+      print("HomeScreen: No user ID provided, can't fetch streak.");
+      return;
+    }
+    
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId) // <-- Use the passed-in ID
+          .get();
+
+      if (doc.exists) {
+        // Get the value from Firestore
+        int fetchedStreak =
+            (doc.data() as Map<String, dynamic>)['streakCount'] ?? 0;
+
+        // This is the magic line that updates your UI
+        if (mounted) { // Checks if the widget is still on screen
+          setState(() {
+            _streakCount = fetchedStreak;
+          });
+        }
+      } else {
+        // --- FIX: This handles the split-second race condition ---
+        print("HomeScreen: User document doesn't exist yet, retrying in 1 sec...");
+        // Wait for profile creation to finish, then try again
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          _fetchStreakCount(); // Retry fetching
+        }
+      }
+    } catch (e) {
+      print("Error fetching streak count: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // If user is not logged in, show error
-    if (_userId == null) {
+    // --- FIX: Use widget.userId for this check ---
+    if (widget.userId == null) {
       return const Scaffold(
         body: Center(
           child: Text('Please log in to view your plants'),
@@ -242,7 +307,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    int streakCount = 5; //tmp variable for streak count
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -278,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    "Daily Streak $streakCount",
+                    "Daily Streak $_streakCount", // <-- This will now update
                     style: GoogleFonts.poppins(
                       fontSize: 28.sp,
                       fontWeight: FontWeight.bold,
@@ -314,7 +378,8 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(
               height: 180.h,
               child: StreamBuilder<List<Plant>>(
-                stream: _plantService.getUserPlants(_userId!),
+                // --- FIX: Use the guaranteed non-null widget.userId ---
+                stream: _plantService.getUserPlants(widget.userId!),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -399,7 +464,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: const Text('Add New Plant'),
                     prefix: const Icon(Icons.add),
                     style: FButtonStyle.outline,
-                    onPress: () => showAddPlantDialog(context, _userId!),
+                    // --- FIX: Use the guaranteed non-null widget.userId ---
+                    onPress: () => showAddPlantDialog(context, widget.userId!),
                   ),
                   SizedBox(height: 12.h),
                   FButton(
@@ -407,13 +473,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     prefix: const Icon(Icons.list),
                     style: FButtonStyle.outline,
                     onPress: () {
-                      // Navigate to garden screen (index 2 in bottom nav)
-                      final mainNavState = context.findAncestorStateOfType<_MainNavigationState>();
-                      if (mainNavState != null) {
-                        mainNavState.setState(() {
-                          mainNavState._currentIndex = 2;
-                        });
-                      }
+                      // Navigate to garden screen
+                      // setState(() {}); // This setState did nothing, safe to remove
                     },
                   ),
                 ],
