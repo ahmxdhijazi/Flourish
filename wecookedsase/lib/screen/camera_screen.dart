@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 
 class CameraScreen extends StatefulWidget {
   final String? plantId;
@@ -123,6 +125,55 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   bool _uploadSuccess = false;
   String? _downloadUrl;
   String? _errorMessage;
+  bool _isAnalyzing = false;
+  Map<String, dynamic>? _analysisResult;
+
+  Future<void> _callBackendAPI(String imageUrl) async {
+    setState(() {
+      _isAnalyzing = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:5000/analyze-dual-model'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'imageURL': imageUrl}),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        setState(() {
+          _analysisResult = result;
+          _isAnalyzing = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image analysis complete!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception('API returned status ${response.statusCode}');
+      }
+    } catch (e) {
+      setState(() {
+        _isAnalyzing = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Analysis failed: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      debugPrint('Backend API error: $e');
+    }
+  }
 
   Future<void> _uploadImageToFirebase() async {
     setState(() {
@@ -161,11 +212,14 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Image uploaded successfully!'),
+            content: Text('Image uploaded successfully! Analyzing...'),
             backgroundColor: Colors.green,
           ),
         );
       }
+
+      // Call backend API with the download URL
+      await _callBackendAPI(downloadUrl);
     } catch (e) {
       setState(() {
         _isUploading = false;
@@ -215,12 +269,61 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                 if (_downloadUrl != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(
-                      'Uploaded successfully!',
-                      style: const TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Uploaded successfully!',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (_isAnalyzing)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                SizedBox(width: 8),
+                                Text('Analyzing image...'),
+                              ],
+                            ),
+                          ),
+                        if (_analysisResult != null && !_isAnalyzing)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Analysis Results:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _analysisResult.toString(),
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 SizedBox(
