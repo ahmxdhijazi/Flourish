@@ -1,0 +1,594 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'services/plant_service.dart';
+import 'services/user_service.dart';
+import 'models/plant_model.dart';
+import 'pages/plants_page.dart';
+
+// Garden Screen
+class GardenScreen extends StatefulWidget {
+  const GardenScreen({super.key});
+
+  @override
+  State<GardenScreen> createState() => _GardenScreenState();
+}
+
+class _GardenScreenState extends State<GardenScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  final PlantService _plantService = PlantService();
+  final UserService _userService = UserService();
+  bool _showFavoritesOnly = false;
+  String _searchQuery = '';
+  
+  // Get current user ID from Firebase Auth
+  String? get _userId => FirebaseAuth.instance.currentUser?.uid;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Plant> _filterPlants(List<Plant> plants, List<String> favorites) {
+    return plants.where((plant) {
+      // Filter by search query
+      final matchesSearch = _searchQuery.isEmpty ||
+          plant.name.toLowerCase().contains(_searchQuery);
+      
+      // Filter by favorites
+      final matchesFavorites = !_showFavoritesOnly || favorites.contains(plant.id);
+      
+      return matchesSearch && matchesFavorites;
+    }).toList();
+  }
+
+  Future<void> _toggleFavorite(String plantId, bool isFavorite) async {
+    if (_userId == null) return;
+
+    try {
+      if (isFavorite) {
+        await _userService.removeFromFavorites(_userId!, plantId);
+      } else {
+        await _userService.addToFavorites(_userId!, plantId);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update favorites: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showCreatePlantDialog() async {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            'Create New Plant',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Plant Name',
+                    labelStyle: GoogleFonts.poppins(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                      borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+                    ),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    labelStyle: GoogleFonts.poppins(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                      borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+                    ),
+                  ),
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final description = descriptionController.text.trim();
+
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Please enter a plant name'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                if (_userId != null) {
+                  try {
+                    await _plantService.addPlant(
+                      Plant(
+                        name: name,
+                        description: description,
+                        colorHex: '#2196F3',
+                      ),
+                      _userId!,
+                    );
+
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Plant "$name" created successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to create plant: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(
+                'Create',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Garden",
+          style: GoogleFonts.poppins(
+            fontSize: 24.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreatePlantDialog,
+        backgroundColor: Colors.deepPurple,
+        elevation: 6,
+        child: Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 28.sp,
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      body: Column(
+        children: [
+          // Search and Filter Section
+          Container(
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  spreadRadius: 1,
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Search Bar
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search plants...',
+                      hintStyle: GoogleFonts.poppins(
+                        fontSize: 14.sp,
+                        color: Colors.grey,
+                      ),
+                      prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 12.h,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                // Favorites Toggle Button
+                Container(
+                  decoration: BoxDecoration(
+                    color: _showFavoritesOnly 
+                        ? Colors.deepPurple 
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      _showFavoritesOnly ? Icons.star : Icons.star_border,
+                      color: _showFavoritesOnly 
+                          ? Colors.white 
+                          : Colors.deepPurple,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showFavoritesOnly = !_showFavoritesOnly;
+                      });
+                    },
+                    iconSize: 24.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Plants List
+          Expanded(
+            child: _userId == null
+                ? const Center(
+                    child: Text('Please log in to view your plants'),
+                  )
+                : StreamBuilder<List<String>>(
+                    stream: _userService.streamFavorites(_userId!),
+                    builder: (context, favoritesSnapshot) {
+                      return StreamBuilder<List<Plant>>(
+                        stream: _plantService.getUserPlants(_userId!),
+                        builder: (context, plantsSnapshot) {
+                          if (plantsSnapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+
+                          if (plantsSnapshot.hasError) {
+                            return Center(
+                              child: Text(
+                                'Error: ${plantsSnapshot.error}',
+                                style: GoogleFonts.poppins(color: Colors.red),
+                              ),
+                            );
+                          }
+
+                          if (!plantsSnapshot.hasData || plantsSnapshot.data!.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.eco, size: 64.sp, color: Colors.grey),
+                                  SizedBox(height: 16.h),
+                                  Text(
+                                    'No plants yet!',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8.h),
+                                  Text(
+                                    'Press the + button to add your first plant',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14.sp,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          final plants = plantsSnapshot.data!;
+                          final favorites = favoritesSnapshot.data ?? [];
+                          final filteredPlants = _filterPlants(plants, favorites);
+
+                          if (filteredPlants.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off, size: 64.sp, color: Colors.grey),
+                                  SizedBox(height: 16.h),
+                                  Text(
+                                    'No plants found',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8.h),
+                                  Text(
+                                    'Try adjusting your search or filters',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14.sp,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            padding: EdgeInsets.all(16.w),
+                            itemCount: filteredPlants.length,
+                            itemBuilder: (context, index) {
+                              final plant = filteredPlants[index];
+                              final color = Color(
+                                int.parse(plant.colorHex.replaceFirst('#', '0xFF'))
+                              );
+                              final isFavorite = favorites.contains(plant.id);
+                              
+                              return _buildPlantCard(plant, color, isFavorite);
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlantCard(Plant plant, Color color, bool isFavorite) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlantsPage(
+              plantName: plant.name,
+              plantIcon: Icons.local_florist,
+              plantColor: color,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        margin: EdgeInsets.only(bottom: 16.h),
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16.r),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withValues(alpha: 0.1),
+              color.withValues(alpha: 0.05),
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Row: Icon, Name, and Favorite Button
+              Row(
+                children: [
+                  // Plant Icon
+                  Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Icon(
+                      Icons.local_florist,
+                      color: Colors.white,
+                      size: 28.sp,
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  // Plant Name and Level
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          plant.name,
+                          style: GoogleFonts.poppins(
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 4.h),
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8.w,
+                                vertical: 4.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: Text(
+                                'Level ${plant.level}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: color,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            Text(
+                              '${plant.xp} XP',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.sp,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Favorite Button
+                  IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 28.sp,
+                    ),
+                    onPressed: plant.id == null ? null : () async {
+                      await _toggleFavorite(plant.id!, isFavorite);
+                    },
+                  ),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              // Description
+              if (plant.description.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(bottom: 12.h),
+                  child: Text(
+                    plant.description,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13.sp,
+                      color: Colors.grey.shade700,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              // Stats Row
+              Row(
+                children: [
+                  _buildStatItem(
+                    Icons.water_drop,
+                    '${(plant.waterLevel * 100).toInt()}%',
+                    Colors.blue,
+                  ),
+                  SizedBox(width: 16.w),
+                  _buildStatItem(
+                    Icons.wb_sunny,
+                    plant.sunlight,
+                    Colors.orange,
+                  ),
+                  SizedBox(width: 16.w),
+                  _buildStatItem(
+                    Icons.trending_up,
+                    '${(plant.growthProgress * 100).toInt()}%',
+                    Colors.green,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, String value, Color color) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 18.sp,
+          color: color,
+        ),
+        SizedBox(width: 4.w),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700,
+          ),
+        ),
+      ],
+    );
+  }
+}
