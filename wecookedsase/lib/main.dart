@@ -7,7 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'profile.dart'; // Make sure profile.dart can accept a userId
+import 'profile.dart';
 import 'pages/plants_page.dart';
 import 'services/plant_service.dart';
 import 'models/plant_model.dart';
@@ -28,7 +28,6 @@ void main() async {
   runApp(const MyApp());
 }
 
-// Root widget that checks authentication state
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -339,17 +338,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               child: Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    "Daily Streak $_streakCount", // <-- This will now update
-                    style: GoogleFonts.poppins(
-                      fontSize: 28.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Daily Streak",
+                      style: GoogleFonts.poppins(
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      "$_streakCount",
+                      style: GoogleFonts.poppins(
+                        fontSize: 56.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -376,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // StreamBuilder to fetch plants from Firebase
             SizedBox(
-              height: 160.h,
+              height: 180.h,
               child: StreamBuilder<List<Plant>>(
                 // --- FIX: Use the guaranteed non-null widget.userId ---
                 stream: _plantService.getUserPlants(widget.userId!),
@@ -506,6 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
               plantSunlight: plant.sunlight,
               plantLastWatered: plant.lastWatered,
               plantCareInstructions: plant.careInstructions,
+              latestImageUrl: plant.latestImageUrl,
               plantCreatedAt: plant.createdAt,
               plantUpdatedAt: plant.updatedAt,
             ),
@@ -513,7 +525,42 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
       child: VStack([
-        Icon(Icons.local_florist, size: 50.sp, color: Colors.white),
+        // Show plant image if available, otherwise show icon
+        plant.latestImageUrl != null && plant.latestImageUrl!.isNotEmpty
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: Image.network(
+                  plant.latestImageUrl!,
+                  width: 80.sp,
+                  height: 80.sp,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.local_florist,
+                      size: 50.sp,
+                      color: Colors.white,
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return SizedBox(
+                      width: 80.sp,
+                      height: 80.sp,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              )
+            : Icon(Icons.local_florist, size: 50.sp, color: Colors.white),
         10.h.heightBox,
         Text(
           plant.name,
@@ -541,8 +588,8 @@ class _HomeScreenState extends State<HomeScreen> {
           .box
           .color(color)
           .roundedLg
-          .width(140.w)
-          .height(140.h)
+          .width(160.w)
+          .height(160.h)
           .shadowMd
           .make()
           .pOnly(right: 12.w),

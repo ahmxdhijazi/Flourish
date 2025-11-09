@@ -888,9 +888,13 @@ class _PlantsPageState extends State<PlantsPage> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 12.w),
-                Text(
-                  '${widget.plantName} has been watered! 💧',
-                  style: GoogleFonts.poppins(),
+                Expanded(
+                  child: Text(
+                    '${widget.plantName} has been watered!',
+                    style: GoogleFonts.poppins(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
