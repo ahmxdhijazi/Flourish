@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/calculateScores.dart';
 import '../widgets/edit_plant_dialog.dart';
 import '../models/plant_model.dart';
+import 'plants_gallery.dart';
 
 class PlantsPage extends StatefulWidget {
   // Plant identification
@@ -24,6 +25,7 @@ class PlantsPage extends StatefulWidget {
   final String plantSunlight;
   final DateTime plantLastWatered;
   final String plantCareInstructions;
+  final String? latestImageUrl;
   final DateTime plantCreatedAt;
   final DateTime plantUpdatedAt;
 
@@ -41,6 +43,7 @@ class PlantsPage extends StatefulWidget {
     required this.plantSunlight,
     required this.plantLastWatered,
     required this.plantCareInstructions,
+    this.latestImageUrl,
     required this.plantCreatedAt,
     required this.plantUpdatedAt,
   });
@@ -57,6 +60,7 @@ class _PlantsPageState extends State<PlantsPage> {
   bool _isLoadingScores = true;
   DateTime _lastWatered;
   bool _isWatering = false;
+  int _totalImageCount = 0;
 
   _PlantsPageState() : _lastWatered = DateTime.now();
 
@@ -64,8 +68,44 @@ class _PlantsPageState extends State<PlantsPage> {
   void initState() {
     super.initState();
     _lastWatered = widget.plantLastWatered;
-    _fetchTodayImage();
+    // Use latestImageUrl from widget if available, otherwise fetch from storage
+    if (widget.latestImageUrl != null && widget.latestImageUrl!.isNotEmpty) {
+      setState(() {
+        _todayImageUrl = widget.latestImageUrl;
+        _hasImageToday = true;
+        _isLoadingImage = false;
+      });
+      _fetchImageCount(); // Still need to get the count for stacked effect
+    } else {
+      _fetchTodayImage();
+    }
     _fetchTodayScores();
+  }
+
+  Future<void> _fetchImageCount() async {
+    if (widget.plantId == null) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('user_plants/${user.uid}/${widget.plantId}');
+
+      final listResult = await storageRef.listAll();
+
+      final totalImages = listResult.items.where((item) {
+        final filename = item.name;
+        return filename.startsWith('plant_') && filename.contains('.jpg');
+      }).length;
+
+      setState(() {
+        _totalImageCount = totalImages;
+      });
+    } catch (e) {
+      debugPrint('Error fetching image count: $e');
+    }
   }
 
   Future<void> _fetchTodayImage() async {
@@ -95,10 +135,17 @@ class _PlantsPageState extends State<PlantsPage> {
       // List all files in the folder
       final listResult = await storageRef.listAll();
 
+      // Count total valid plant images
+      final totalImages = listResult.items.where((item) {
+        final filename = item.name;
+        return filename.startsWith('plant_') && filename.contains('.jpg');
+      }).length;
+
       if (listResult.items.isEmpty) {
         setState(() {
           _isLoadingImage = false;
           _hasImageToday = false;
+          _totalImageCount = 0;
         });
         return;
       }
@@ -118,6 +165,7 @@ class _PlantsPageState extends State<PlantsPage> {
         setState(() {
           _isLoadingImage = false;
           _hasImageToday = false;
+          _totalImageCount = totalImages;
         });
         return;
       }
@@ -133,6 +181,7 @@ class _PlantsPageState extends State<PlantsPage> {
         _todayImageUrl = downloadUrl;
         _hasImageToday = true;
         _isLoadingImage = false;
+        _totalImageCount = totalImages;
       });
     } catch (e) {
       debugPrint('Error fetching today\'s image: $e');
@@ -279,45 +328,204 @@ class _PlantsPageState extends State<PlantsPage> {
                           ),
                         )
                       : _hasImageToday && _todayImageUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(16.r),
-                              child: Image.network(
-                                _todayImageUrl!,
-                                width: 200.w,
-                                height: 200.w,
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return SizedBox(
-                                    width: 200.w,
-                                    height: 200.w,
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        value: loadingProgress.expectedTotalBytes != null
-                                            ? loadingProgress.cumulativeBytesLoaded /
-                                                loadingProgress.expectedTotalBytes!
-                                            : null,
-                                        color: Colors.white,
+                          ? GestureDetector(
+                              onTap: () {
+                                if (widget.plantId != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => PlantsGalleryPage(
+                                        plantId: widget.plantId!,
+                                        plantName: widget.plantName,
+                                        plantColor: widget.plantColor,
                                       ),
                                     ),
                                   );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 80.sp,
-                                    height: 80.sp,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(12.r),
+                                }
+                              },
+                              child: _totalImageCount > 1
+                                  ? SizedBox(
+                                      width: 200.w,
+                                      height: 220.w, // Extra height for stacked effect + badge
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          // Third layer (bottom-most)
+                                          if (_totalImageCount > 2)
+                                            Positioned(
+                                              top: 0,
+                                              child: Container(
+                                                width: 180.w,
+                                                height: 180.w,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white.withValues(alpha: 0.4),
+                                                  borderRadius: BorderRadius.circular(16.r),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black.withValues(alpha: 0.2),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 4),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          // Second layer
+                                          Positioned(
+                                            top: 4.h,
+                                            child: Container(
+                                              width: 190.w,
+                                              height: 190.w,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.6),
+                                                borderRadius: BorderRadius.circular(16.r),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withValues(alpha: 0.2),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 4),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        // Top layer (main image)
+                                        Positioned(
+                                          top: 8.h,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(16.r),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withValues(alpha: 0.3),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 6),
+                                                ),
+                                              ],
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(16.r),
+                                              child: Image.network(
+                                                _todayImageUrl!,
+                                                width: 200.w,
+                                                height: 200.w,
+                                                fit: BoxFit.cover,
+                                                loadingBuilder: (context, child, loadingProgress) {
+                                                  if (loadingProgress == null) return child;
+                                                  return SizedBox(
+                                                    width: 200.w,
+                                                    height: 200.w,
+                                                    child: Center(
+                                                      child: CircularProgressIndicator(
+                                                        value: loadingProgress.expectedTotalBytes != null
+                                                            ? loadingProgress.cumulativeBytesLoaded /
+                                                                loadingProgress.expectedTotalBytes!
+                                                            : null,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return Container(
+                                                    width: 200.w,
+                                                    height: 200.w,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white.withValues(alpha: 0.2),
+                                                      borderRadius: BorderRadius.circular(12.r),
+                                                    ),
+                                                    child: Icon(
+                                                      widget.plantIcon,
+                                                      size: 60.sp,
+                                                      color: Colors.white,
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        // Photo count badge
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 12.w,
+                                              vertical: 6.h,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(alpha: 0.7),
+                                              borderRadius: BorderRadius.circular(20.r),
+                                              border: Border.all(
+                                                color: Colors.white.withValues(alpha: 0.5),
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.photo_library,
+                                                  color: Colors.white,
+                                                  size: 16.sp,
+                                                ),
+                                                SizedBox(width: 4.w),
+                                                Text(
+                                                  '$_totalImageCount',
+                                                  style: GoogleFonts.poppins(
+                                                    color: Colors.white,
+                                                    fontSize: 14.sp,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    child: Icon(
-                                      widget.plantIcon,
-                                      size: 60.sp,
-                                      color: Colors.white,
+                                  )
+                                  : ClipRRect(
+                                      borderRadius: BorderRadius.circular(16.r),
+                                      child: Image.network(
+                                        _todayImageUrl!,
+                                        width: 200.w,
+                                        height: 200.w,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return SizedBox(
+                                            width: 200.w,
+                                            height: 200.w,
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                value: loadingProgress.expectedTotalBytes != null
+                                                    ? loadingProgress.cumulativeBytesLoaded /
+                                                        loadingProgress.expectedTotalBytes!
+                                                    : null,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 80.sp,
+                                            height: 80.sp,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(12.r),
+                                            ),
+                                            child: Icon(
+                                              widget.plantIcon,
+                                              size: 60.sp,
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     ),
-                                  );
-                                },
-                              ),
                             )
                           : Container(
                               width: 200.w,
@@ -423,11 +631,11 @@ class _PlantsPageState extends State<PlantsPage> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  _buildStatRow('Growth Progress', '${(widget.plantGrowthProgress * 100).toStringAsFixed(0)}%', Icons.trending_up),
-                  SizedBox(height: 12.h),
-                  _buildStatRow('Water Level', '${(widget.plantWaterLevel * 100).toStringAsFixed(0)}%', Icons.water_drop),
-                  SizedBox(height: 12.h),
-                  _buildStatRow('Sunlight', widget.plantSunlight, Icons.wb_sunny),
+                  _buildStatRow(
+                    'Growth Stage', 
+                    _toTitleCase(_todayScores?.stage ?? 'Unknown'), 
+                    Icons.eco,
+                  ),
                   SizedBox(height: 12.h),
                   _buildStatRow('Last Watered', _formatDate(_lastWatered), Icons.schedule),
                 ],
@@ -759,6 +967,14 @@ class _PlantsPageState extends State<PlantsPage> {
     } else {
       return '${date.month}/${date.day}/${date.year}';
     }
+  }
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
   }
 
   Widget _buildScoresCard() {
