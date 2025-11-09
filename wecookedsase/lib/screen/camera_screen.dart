@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/plant_model.dart';
 import '../pages/plants_page.dart';
+import '../utils/calculateScores.dart';
 
 class CameraScreen extends StatefulWidget {
   final String? plantId;
@@ -129,7 +130,35 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   String? _downloadUrl;
   String? _errorMessage;
   bool _isAnalyzing = false;
-  Map<String, dynamic>? _analysisResult;
+  Map<String, dynamic>? _analysisResult; // Raw API response (kept for debugging)
+  PlantAnalysisResult? _plantScores;
+
+  Future<void> _saveScoresToFirestore(PlantAnalysisResult scores) async {
+    if (widget.plantId == null) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Save to Firestore
+      await FirebaseFirestore.instance.collection('plant_analysis').add({
+        'userId': user.uid,
+        'plantId': widget.plantId,
+        'timestamp': DateTime.now(),
+        'healthScore': scores.healthScore,
+        'growthScore': scores.growthScore,
+        'overallScore': scores.overallScore,
+        'stage': scores.stage,
+        'confidence': scores.confidence,
+        'recommendations': scores.recommendations,
+        'rawData': scores.rawData,
+      });
+
+      debugPrint('Scores saved to Firestore successfully');
+    } catch (e) {
+      debugPrint('Error saving scores to Firestore: $e');
+    }
+  }
 
   Future<void> _callBackendAPI(String imageUrl) async {
     setState(() {
@@ -168,17 +197,32 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
+        
+        // Calculate plant scores from the API response
+        final scores = PlantScoreCalculator.calculateScores(result);
+        
         setState(() {
           _analysisResult = result;
+          _plantScores = scores;
           _isAnalyzing = false;
         });
 
+        debugPrint('=== Plant Scores ===');
+        debugPrint('Overall Score: ${scores.overallScore.toStringAsFixed(1)}');
+        debugPrint('Health Score: ${scores.healthScore.toStringAsFixed(1)}');
+        debugPrint('Growth Score: ${scores.growthScore.toStringAsFixed(1)}');
+        debugPrint('Stage: ${scores.stage}');
+        debugPrint('Recommendations: ${scores.recommendations.length}');
+
+        // Save scores to Firestore
+        await _saveScoresToFirestore(scores);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Image analysis complete!'),
+            SnackBar(
+              content: Text('Analysis complete! Score: ${scores.overallScore.toStringAsFixed(0)}/100'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
           
@@ -324,6 +368,16 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     }
   }
 
+  Color _getScoreColor(double score) {
+    if (score >= 80) {
+      return Colors.green;
+    } else if (score >= 60) {
+      return Colors.orange;
+    } else {
+      return Colors.red;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -380,30 +434,52 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                               ],
                             ),
                           ),
-                        if (_analysisResult != null && !_isAnalyzing)
+                        if (_plantScores != null && !_isAnalyzing)
                           Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Container(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.blue.shade200),
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.green.shade300, width: 1.5),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  const Text(
-                                    'Analysis Results:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: _getScoreColor(_plantScores!.overallScore),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 20,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    _analysisResult.toString(),
-                                    style: const TextStyle(fontSize: 12),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Analysis Complete!',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Score: ${_plantScores!.overallScore.toStringAsFixed(0)}/100 • ${_plantScores!.stage}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
