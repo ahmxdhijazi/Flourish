@@ -149,9 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
       
-      if (mounted) {
-        Navigator.of(context).pop(); // Return to previous screen after login
-      }
+      // No need to navigate - AuthWrapper will handle it automatically
+      // when it detects the auth state change
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Exception details:');
       debugPrint('Code: ${e.code}');

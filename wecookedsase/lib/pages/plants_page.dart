@@ -3,15 +3,40 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class PlantsPage extends StatelessWidget {
+  // Plant identification
+  final String? plantId;
   final String plantName;
   final IconData plantIcon;
   final Color plantColor;
+  
+  // Plant stats
+  final String plantDescription;
+  final int plantLevel;
+  final int plantXp;
+  final double plantGrowthProgress;
+  final double plantWaterLevel;
+  final String plantSunlight;
+  final DateTime plantLastWatered;
+  final String plantCareInstructions;
+  final DateTime plantCreatedAt;
+  final DateTime plantUpdatedAt;
 
   const PlantsPage({
     super.key,
+    this.plantId,
     required this.plantName,
     required this.plantIcon,
     required this.plantColor,
+    required this.plantDescription,
+    required this.plantLevel,
+    required this.plantXp,
+    required this.plantGrowthProgress,
+    required this.plantWaterLevel,
+    required this.plantSunlight,
+    required this.plantLastWatered,
+    required this.plantCareInstructions,
+    required this.plantCreatedAt,
+    required this.plantUpdatedAt,
   });
 
   @override
@@ -65,7 +90,7 @@ class PlantsPage extends StatelessWidget {
                   ),
                   SizedBox(height: 8.h),
                   Text(
-                    'Level 5 • 150 XP',
+                    'Level $plantLevel • $plantXp XP • $plantId',
                     style: GoogleFonts.poppins(
                       fontSize: 14.sp,
                       color: Colors.white.withValues(alpha: 0.9),
@@ -76,6 +101,34 @@ class PlantsPage extends StatelessWidget {
             ),
 
             SizedBox(height: 24.h),
+
+            // Plant Description
+            if (plantDescription.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'About',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      plantDescription,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14.sp,
+                        color: Colors.grey.shade700,
+                        height: 1.5,
+                      ),
+                    ),
+                    SizedBox(height: 24.h),
+                  ],
+                ),
+              ),
 
             // Plant Stats
             Padding(
@@ -91,13 +144,13 @@ class PlantsPage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  _buildStatRow('Growth Progress', '75%', Icons.trending_up),
+                  _buildStatRow('Growth Progress', '${(plantGrowthProgress * 100).toStringAsFixed(0)}%', Icons.trending_up),
                   SizedBox(height: 12.h),
-                  _buildStatRow('Water Level', '90%', Icons.water_drop),
+                  _buildStatRow('Water Level', '${(plantWaterLevel * 100).toStringAsFixed(0)}%', Icons.water_drop),
                   SizedBox(height: 12.h),
-                  _buildStatRow('Sunlight', 'Optimal', Icons.wb_sunny),
+                  _buildStatRow('Sunlight', plantSunlight, Icons.wb_sunny),
                   SizedBox(height: 12.h),
-                  _buildStatRow('Last Watered', '2 hours ago', Icons.schedule),
+                  _buildStatRow('Last Watered', _formatDate(plantLastWatered), Icons.schedule),
                 ],
               ),
             ),
@@ -125,9 +178,7 @@ class PlantsPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Text(
-                      'This plant needs regular watering and moderate sunlight. '
-                      'Keep the soil moist but not waterlogged. '
-                      'Fertilize monthly during growing season.',
+                      plantCareInstructions,
                       style: GoogleFonts.poppins(
                         fontSize: 14.sp,
                         color: Colors.grey.shade700,
@@ -247,5 +298,23 @@ class PlantsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        return '${difference.inMinutes}m ago';
+      }
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${date.month}/${date.day}/${date.year}';
+    }
   }
 }

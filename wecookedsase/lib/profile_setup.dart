@@ -97,7 +97,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           displayName: _nameController.text,
           profileImage: _profileImage,
         );
+        
         if (mounted) {
+          // Pop back to let AuthWrapper handle navigation to home
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
       }
