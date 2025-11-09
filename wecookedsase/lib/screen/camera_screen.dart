@@ -5,6 +5,9 @@ import 'package:camera/camera.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/plant_model.dart';
+import '../pages/plants_page.dart';
 
 class CameraScreen extends StatefulWidget {
   final String? plantId;
@@ -134,13 +137,34 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     });
 
     try {
-      // Use localhost for desktop platforms (works on both Mac and Windows)
-      // For mobile/web testing, replace with your machine's IP address
+      // For iOS simulator/device and macOS, use the host machine's actual IP
+      // For Android emulator, use 10.0.2.2
+      // For physical devices, use your computer's local IP address
+      String baseUrl = '167.96.170.255:5000'; // Your machine's local IP
+      if (Platform.isAndroid) {
+        baseUrl = '10.0.2.2:5000'; // Android emulator
+      }
+      
+      final apiUrl = 'http://$baseUrl/analyze-dual-model';
+      
+      debugPrint('=== Starting Backend API Call ===');
+      debugPrint('Image URL: $imageUrl');
+      debugPrint('API Endpoint: $apiUrl');
+      debugPrint('Platform: ${Platform.operatingSystem}');
+      
       final response = await http.post(
-        Uri.parse('http://localhost:5000/analyze-dual-model'),
+        Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'imageURL': imageUrl}),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw Exception('Request timed out after 60 seconds');
+        },
       );
+
+      debugPrint('Response status code: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
@@ -154,13 +178,73 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
             const SnackBar(
               content: Text('Image analysis complete!'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
             ),
           );
+          
+          // Wait a moment for user to see the success message, then navigate to plant page
+          Future.delayed(const Duration(seconds: 1), () async {
+            if (mounted && widget.plantId != null) {
+              try {
+                // Fetch the plant data from Firestore
+                final plantDoc = await FirebaseFirestore.instance
+                    .collection('plants')
+                    .doc(widget.plantId)
+                    .get();
+                
+                if (plantDoc.exists && mounted) {
+                  final plant = Plant.fromFirestore(plantDoc);
+                  
+                  // Pop all camera screens back to homepage
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  
+                  // Navigate to the plant page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PlantsPage(
+                        plantId: plant.id,
+                        plantName: plant.name,
+                        plantIcon: Icons.local_florist,
+                        plantColor: Color(int.parse(plant.colorHex.replaceFirst('#', '0xFF'))),
+                        plantDescription: plant.description,
+                        plantLevel: plant.level,
+                        plantXp: plant.xp,
+                        plantGrowthProgress: plant.growthProgress,
+                        plantWaterLevel: plant.waterLevel,
+                        plantSunlight: plant.sunlight,
+                        plantLastWatered: plant.lastWatered,
+                        plantCareInstructions: plant.careInstructions,
+                        plantCreatedAt: plant.createdAt,
+                        plantUpdatedAt: plant.updatedAt,
+                      ),
+                    ),
+                  );
+                } else if (mounted) {
+                  // Plant not found, just go back to homepage
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              } catch (e) {
+                debugPrint('Error fetching plant data: $e');
+                if (mounted) {
+                  // On error, just go back to homepage
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              }
+            } else if (mounted) {
+              // No plantId, just go back to homepage
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          });
         }
       } else {
-        throw Exception('API returned status ${response.statusCode}');
+        throw Exception('API returned status ${response.statusCode}: ${response.body}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('=== Backend API Error ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      
       setState(() {
         _isAnalyzing = false;
       });
@@ -170,10 +254,10 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
           SnackBar(
             content: Text('Analysis failed: $e'),
             backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
-      debugPrint('Backend API error: $e');
     }
   }
 
