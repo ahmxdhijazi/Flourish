@@ -27,7 +27,6 @@ class UserService {
       'profileImageUrl': profileImageUrl,
       'createdAt': FieldValue.serverTimestamp(),
       'plants': 0,
-      'gardens': 0,
       'daysActive': 0,
       'favorites': [],
     });
