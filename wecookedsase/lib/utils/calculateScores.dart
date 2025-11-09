@@ -103,7 +103,7 @@ class PlantScoreCalculator {
         }
       } else {
         // Model 2 data not available - assume healthy
-        healthScore = 85.0;
+        healthScore = 90.0;
       }
 
       // Calculate overall score (weighted average)
@@ -137,9 +137,9 @@ class PlantScoreCalculator {
       
       // Return default values on error
       return PlantAnalysisResult(
-        healthScore: 50.0,
-        growthScore: 50.0,
-        overallScore: 50.0,
+        healthScore: 0.0,
+        growthScore: 0.0,
+        overallScore: 0.0,
         stage: 'Unknown',
         confidence: 0.0,
         recommendations: ['Unable to analyze image. Please try again.'],
@@ -150,20 +150,20 @@ class PlantScoreCalculator {
 
   /// Normalize growth stage names to consistent format
   static String _normalizeGrowthStage(String detectedClass) {
-    final lowerClass = detectedClass.toLowerCase();
+    final lowerClass = detectedClass.toLowerCase().trim();
     
-    if (lowerClass.contains('seed') || lowerClass.contains('germination')) {
-      return 'Seedling';
-    } else if (lowerClass.contains('vegetative') || lowerClass.contains('growth')) {
-      return 'Vegetative';
-    } else if (lowerClass.contains('flowering') || lowerClass.contains('flower')) {
-      return 'Flowering';
-    } else if (lowerClass.contains('fruiting') || lowerClass.contains('fruit')) {
-      return 'Fruiting';
-    } else if (lowerClass.contains('mature') || lowerClass.contains('harvest')) {
-      return 'Mature';
+    // Map Model 1 specific classes to display names
+    if (lowerClass == '0') {
+      return 'germination';
+    } else if (lowerClass == 'germination') {
+      return 'germination';
+    } else if (lowerClass == 'growing') {
+      return 'growing';
+    } else if (lowerClass == 'flowering') {
+      return 'flowering';
     }
     
+    // Fallback for any unexpected classes
     return detectedClass;
   }
 
@@ -175,19 +175,13 @@ class PlantScoreCalculator {
     // Adjust based on growth stage (later stages = higher score)
     double stageMultiplier = 1.0;
     switch (stage.toLowerCase()) {
-      case 'seedling':
+      case 'germination':
         stageMultiplier = 0.6;
         break;
-      case 'vegetative':
-        stageMultiplier = 0.75;
+      case 'growing':
+        stageMultiplier = 0.8;
         break;
       case 'flowering':
-        stageMultiplier = 0.9;
-        break;
-      case 'fruiting':
-        stageMultiplier = 0.95;
-        break;
-      case 'mature':
         stageMultiplier = 1.0;
         break;
       default:
@@ -200,30 +194,32 @@ class PlantScoreCalculator {
   /// Calculate health score when disease is detected (model2 has predictions)
   /// The presence of predictions means disease was detected, so we deduct points
   static double _calculateHealthScoreWithDisease(String detectedClass, double confidence) {
-    // Start with base healthy score
-    double baseHealth = 100.0;
-    
-    // Deduct points based on confidence of disease detection
-    // Higher confidence = more severe deduction
-    double deduction = confidence * 60; // Max deduction of 60 points at 100% confidence
-    
-    // Additional deduction based on disease severity from class name
     final lowerClass = detectedClass.toLowerCase();
-    double severityMultiplier = 1.0;
     
-    if (lowerClass.contains('severe') || lowerClass.contains('blight') || 
-        lowerClass.contains('rot')) {
-      severityMultiplier = 1.3; // More severe diseases
-    } else if (lowerClass.contains('mild') || lowerClass.contains('spot')) {
-      severityMultiplier = 0.7; // Less severe diseases
+    // Check for specific diseases (lower scores based on severity)
+    if (lowerClass.contains('early blight')) {
+      // Early blight - moderate severity, treatable
+      return (45.0 - (confidence * 15)).clamp(25.0, 45.0);
+    } else if (lowerClass.contains('late blight')) {
+      // Late blight - severe, spreads quickly
+      return (35.0 - (confidence * 15)).clamp(15.0, 35.0);
+    } else if (lowerClass.contains('leaf spot')) {
+      // Leaf spot - moderate severity
+      return (50.0 - (confidence * 20)).clamp(25.0, 50.0);
+    } else if (lowerClass.contains('mosaic virus')) {
+      // Mosaic virus - severe, no cure
+      return (30.0 - (confidence * 10)).clamp(15.0, 30.0);
+    } else if (lowerClass.contains('rust')) {
+      // Rust - moderate severity, treatable
+      return (48.0 - (confidence * 18)).clamp(25.0, 48.0);
+    } else if (lowerClass.contains('disease') || lowerClass.contains('pest') || 
+               lowerClass.contains('damage')) {
+      // Generic disease/pest/damage
+      return (50.0 - (confidence * 30)).clamp(20.0, 50.0);
     }
     
-    // Apply deduction
-    final healthScore = baseHealth - (deduction * severityMultiplier);
-    
-    debugPrint('Health Calculation - Base: $baseHealth, Deduction: ${deduction * severityMultiplier}, Final: $healthScore');
-    
-    return healthScore.clamp(20.0, 100.0);
+    // Default: if disease detected but not recognized, apply moderate penalty
+    return (60.0 - (confidence * 25)).clamp(30.0, 60.0);
   }
 
   /// Calculate overall score (weighted average of health and growth)
@@ -237,46 +233,66 @@ class PlantScoreCalculator {
   /// Get recommendations based on growth stage
   static List<String> _getStageRecommendations(String stage) {
     switch (stage.toLowerCase()) {
-      case 'seedling':
+      case 'germination':
         return [
-          'Provide consistent moisture for seedling development',
+          'Germination Stage - Handle with care',
+          'Provide consistent moisture without overwatering',
           'Ensure adequate light but avoid direct harsh sunlight',
           'Maintain stable temperature between 65-75°F',
+          'Avoid fertilizing until first true leaves appear',
         ];
-      case 'vegetative':
+      case 'growing':
         return [
+          'Growing Stage - Time to nurture',
           'Increase watering frequency as plant grows',
-          'Consider fertilizing with nitrogen-rich nutrients',
-          'Prune to encourage bushier growth',
+          'Apply nitrogen-rich fertilizer for leaf development',
+          'Prune lower leaves to encourage upward growth',
+          'Ensure proper spacing for air circulation',
         ];
       case 'flowering':
         return [
-          'Switch to bloom-boosting fertilizer',
+          'Flowering Stage - Support bloom development',
+          'Switch to phosphorus-rich bloom fertilizer',
           'Maintain consistent watering schedule',
-          'Ensure 12+ hours of light daily',
-        ];
-      case 'fruiting':
-        return [
-          'Support heavy branches with stakes',
-          'Continue bloom fertilizer application',
-          'Monitor for pests attracted to fruits',
-        ];
-      case 'mature':
-        return [
-          'Prepare for harvest when ready',
-          'Reduce fertilizer as plant matures',
-          'Monitor for signs of over-ripening',
+          'Ensure 12+ hours of light daily for optimal flowering',
+          'Support stems if flowers become heavy',
         ];
       default:
-        return ['Continue regular plant care routine'];
+        return ['Continue monitoring plant growth and maintain regular care routine'];
     }
   }
 
   /// Get recommendations based on health analysis
   static List<String> _getHealthRecommendations(String detectedClass, double healthScore) {
     final recommendations = <String>[];
+    final lowerClass = detectedClass.toLowerCase();
     
-    if (healthScore < 50) {
+    // Specific recommendations for each disease
+    if (lowerClass.contains('early blight')) {
+      recommendations.add('Early Blight Detected');
+      recommendations.add('Remove affected leaves immediately');
+      recommendations.add('Apply copper-based fungicide');
+      recommendations.add('Improve air circulation around plant');
+      recommendations.add('Avoid overhead watering to reduce leaf wetness');
+    } else if (lowerClass.contains('late blight')) {
+      recommendations.add('Late Blight Detected - Act Quickly!');
+      recommendations.add('Isolate plant immediately to prevent spread');
+      recommendations.add('Remove all infected parts');
+      recommendations.add('Apply systemic fungicide treatment');
+      recommendations.add('Monitor nearby plants closely for symptoms');
+    } else if (lowerClass.contains('leaf spot')) {
+      recommendations.add('Leaf Spot Detected');
+      recommendations.add('Remove infected leaves and dispose properly');
+      recommendations.add('Apply fungicide spray as directed');
+      recommendations.add('Ensure proper spacing for air circulation');
+      recommendations.add('Water at base to keep foliage dry');
+    } else if (lowerClass.contains('rust')) {
+      recommendations.add('Rust Disease Detected');
+      recommendations.add('Remove infected leaves carefully');
+      recommendations.add('Apply sulfur or copper-based fungicide');
+      recommendations.add('Increase spacing between plants');
+      recommendations.add('Water in morning to allow foliage to dry');
+    } else if (healthScore < 50) {
       recommendations.add('Plant health needs attention');
       recommendations.add('Check for pests, diseases, or nutrient deficiencies');
       recommendations.add('Consider adjusting watering or light conditions');
