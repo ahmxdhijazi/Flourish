@@ -7,6 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../auth.dart';
 import '../services/friend_service.dart';
+import '../services/user_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _friendService = FriendService();
+  final _userService = UserService();
   final _currentUserId = FirebaseAuth.instance.currentUser?.uid;
   bool _isLoading = false;
   String? _errorMessage;
@@ -227,8 +229,16 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           throw Exception('No user is currently signed in');
         }
 
+        // Update Firebase Auth user profile
         await user.updateDisplayName(result.trim());
         await user.reload();
+        
+        // Update Firestore document
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'displayName': result.trim()});
+        
         _displayNameController.text = result.trim();
 
         if (mounted) {
@@ -611,7 +621,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               30.h.heightBox,
 
               Text(
-                'Account',
+                'Danger Zone',
                 style: GoogleFonts.poppins(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.bold,

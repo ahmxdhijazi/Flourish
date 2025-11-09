@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screen/camera_screen.dart';
+import 'screen/plant_photo_selector.dart';
 import 'package:velocity_x/velocity_x.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,6 +16,7 @@ import '../services/friend_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/leaderboard_page.dart';
 import 'garden.dart';
+import 'widgets/add_plant_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -112,12 +113,6 @@ class _MainNavigationState extends State<MainNavigation> {
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    } else {
-      // User is signed in, open camera
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const CameraScreen()),
-      );
     }
   }
 
@@ -126,7 +121,12 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: _screens[_currentIndex],
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _onCameraButtonPressed(context),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PlantPhotoSelector()),
+          );
+        },
         backgroundColor: Colors.deepPurple,
         elevation: 6,
         child: Icon(
@@ -245,94 +245,16 @@ class _HomeScreenState extends State<HomeScreen> {
     int streakCount = 5; //tmp variable for streak count
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        toolbarHeight: 90, // slightly taller for visual balance
-        backgroundColor: Colors.deepPurple,
-        title: Center(
-          child: Padding(
-            padding: const EdgeInsets.only(
-                bottom: 5), // adjust this up/down if needed
-            child: Image.asset(
-              'assets/flourish.png',
-              height: 50, // tweak this for your preferred size
-              fit: BoxFit.contain,
-            ),
+        title: Text(
+          "Flourish",
+          style: GoogleFonts.poppins(
+            fontSize: 24.sp,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          // Add Friend button (top right)
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1),
-            color: Colors.white,
-            tooltip: 'Add Friend',
-            onPressed: () async {
-              final nameController = TextEditingController();
-
-              final friendName = await showDialog<String>(
-                context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: const Text('Add Friend'),
-                    content: TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Enter friend’s display name',
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, nameController.text.trim()),
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  );
-                },
-              );
-
-              if (friendName == null || friendName.isEmpty) return;
-
-              final firestore = FirebaseFirestore.instance;
-              final query = await firestore
-                  .collection('users')
-                  .where('displayName', isEqualTo: friendName)
-                  .get();
-
-              if (query.docs.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No user found with that name')),
-                );
-                return;
-              }
-
-              final friendDoc = query.docs.first;
-              final friendId = friendDoc.id;
-
-              await _friendService.sendFriendRequest(_currentUserId!, friendId);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Added $friendName as a friend!')),
-              );
-            },
-          ),
-
-          // Existing add button for sample plants
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            color: Colors.white,
-            onPressed: () async {
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              await _plantService.createSamplePlants(_userId!);
-              scaffoldMessenger.showSnackBar(
-                const SnackBar(content: Text('Sample plants created!')),
-              );
-            },
-          ),
-        ],
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -477,17 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: const Text('Add New Plant'),
                     prefix: const Icon(Icons.add),
                     style: FButtonStyle.outline,
-                    onPress: () async {
-                      // Add a new plant
-                      await _plantService.addPlant(
-                        Plant(
-                          name: 'New Plant ${DateTime.now().millisecond}',
-                          description: 'A newly added plant',
-                          colorHex: '#2196F3',
-                        ),
-                        _userId!,
-                      );
-                    },
+                    onPress: () => showAddPlantDialog(context, _userId!),
                   ),
                   SizedBox(height: 12.h),
                   FButton(
@@ -516,9 +428,20 @@ class _HomeScreenState extends State<HomeScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => PlantsPage(
+              plantId: plant.id,
               plantName: plant.name,
               plantIcon: Icons.local_florist,
               plantColor: color,
+              plantDescription: plant.description,
+              plantLevel: plant.level,
+              plantXp: plant.xp,
+              plantGrowthProgress: plant.growthProgress,
+              plantWaterLevel: plant.waterLevel,
+              plantSunlight: plant.sunlight,
+              plantLastWatered: plant.lastWatered,
+              plantCareInstructions: plant.careInstructions,
+              plantCreatedAt: plant.createdAt,
+              plantUpdatedAt: plant.updatedAt,
             ),
           ),
         );
@@ -557,97 +480,6 @@ class _HomeScreenState extends State<HomeScreen> {
           .shadowMd
           .make()
           .pOnly(right: 12.w),
-    );
-  }
-}
-
-// Garden Screen
-class GardenScreen extends StatelessWidget {
-  const GardenScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "All Plants",
-          style: GoogleFonts.poppins(
-            fontSize: 24.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView.builder(
-        padding: EdgeInsets.all(8.w),
-        itemCount: 10,
-        itemBuilder: (context, index) {
-          return Card(
-            margin: EdgeInsets.only(bottom: 12.h),
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(12.r)),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(12.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Plant ${index + 1}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4.h),
-                      Text(
-                        'Plant Details go here',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13.sp,
-                        ),
-                      ),
-                      SizedBox(height: 8.h),
-                      Text(
-                        "Plant Details",
-                        style: TextStyle(fontSize: 12.sp),
-                      ),
-                      SizedBox(height: 12.h),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          FButton(
-                            label: const Text('View'),
-                            style: FButtonStyle.outline,
-                            onPress: () {},
-                          ),
-                          SizedBox(width: 8.w),
-                          FButton(
-                            label: const Text('Favorite'),
-                            prefix: const Icon(Icons.favorite_border),
-                            style: FButtonStyle.primary,
-                            onPress: () {},
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }
