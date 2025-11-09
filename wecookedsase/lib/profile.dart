@@ -210,7 +210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         bottom: 0,
                         child: Container(
                           padding: EdgeInsets.all(4.r),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: Colors.deepPurple,
                             shape: BoxShape.circle,
                           ),

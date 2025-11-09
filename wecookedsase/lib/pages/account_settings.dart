@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:forui/forui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../auth.dart';
+import '../services/friend_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -20,6 +22,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _friendService = FriendService();
+  final _currentUserId = FirebaseAuth.instance.currentUser?.uid;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -49,7 +53,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   Future<void> _confirmAccountDeletion(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    
+
     // Show confirmation dialog
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -108,7 +112,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(passwordController.text),
+              onPressed: () =>
+                  Navigator.of(context).pop(passwordController.text),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Delete Account'),
             ),
@@ -182,10 +187,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     }
   }
 
-
-
   Future<void> _showDisplayNameDialog(BuildContext context) async {
-    final nameController = TextEditingController(text: _displayNameController.text);
+    final nameController =
+        TextEditingController(text: _displayNameController.text);
     final result = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
@@ -255,7 +259,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Future<void> _showChangeEmailDialog(BuildContext context) async {
     final emailController = TextEditingController(text: _emailController.text);
     final passwordController = TextEditingController();
-    
+
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (BuildContext context) {
@@ -309,7 +313,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         }
 
         // Validate new email
-        if (!result['email']!.contains('@') || !result['email']!.contains('.')) {
+        if (!result['email']!.contains('@') ||
+            !result['email']!.contains('.')) {
           throw FirebaseAuthException(
             code: 'invalid-email',
             message: 'Please enter a valid email address',
@@ -325,12 +330,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
         // Update email directly with Firebase
         await user.verifyBeforeUpdateEmail(result['email']!.trim());
-        
+
         if (mounted) {
           scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text(
-              'Verification email sent. Please check your new email and click the verification link to complete the change.'
-            )),
+            const SnackBar(
+                content: Text(
+                    'Verification email sent. Please check your new email and click the verification link to complete the change.')),
           );
         }
       } on FirebaseAuthException catch (e) {
@@ -417,7 +422,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             ),
             TextButton(
               onPressed: () {
-                if (newPasswordController.text != confirmPasswordController.text) {
+                if (newPasswordController.text !=
+                    confirmPasswordController.text) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('New passwords do not match')),
                   );
@@ -477,7 +483,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                 _errorMessage = 'Current password is incorrect';
                 break;
               case 'requires-recent-login':
-                _errorMessage = 'Please enter your current password to continue';
+                _errorMessage =
+                    'Please enter your current password to continue';
                 break;
               default:
                 _errorMessage = 'Failed to update password: ${e.message}';
@@ -560,13 +567,15 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.edit),
-                    onPressed: _isLoading ? null : () => _showDisplayNameDialog(context),
+                    onPressed: _isLoading
+                        ? null
+                        : () => _showDisplayNameDialog(context),
                   ),
                 ),
               ),
-              
+
               16.h.heightBox,
-              
+
               // Email Row
               FCard(
                 child: ListTile(
@@ -580,23 +589,35 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.edit),
-                    onPressed: _isLoading ? null : () => _showChangeEmailDialog(context),
+                    onPressed: _isLoading
+                        ? null
+                        : () => _showChangeEmailDialog(context),
                   ),
                 ),
               ),
-              
+
               16.h.heightBox,
-              
+
               // Change Password Button
               FButton(
                 label: const Text('Change Password'),
                 prefix: const Icon(Icons.lock_outline),
                 style: FButtonStyle.outline,
-                onPress: _isLoading ? null : () => _showChangePasswordDialog(context),
+                onPress: _isLoading
+                    ? null
+                    : () => _showChangePasswordDialog(context),
               ),
-              
+
               30.h.heightBox,
-              
+
+              Text(
+                'Account',
+                style: GoogleFonts.poppins(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
               // Delete Account Button
               FButton(
                 label: Text(
@@ -605,7 +626,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                 ),
                 prefix: const Icon(Icons.delete_outline, color: Colors.red),
                 style: FButtonStyle.outline,
-                onPress: _isLoading ? null : () => _confirmAccountDeletion(context),
+                onPress:
+                    _isLoading ? null : () => _confirmAccountDeletion(context),
               ),
             ],
           ),
