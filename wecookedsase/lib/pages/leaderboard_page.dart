@@ -16,72 +16,122 @@ class LeaderBoardPage extends StatefulWidget {
 class _LeaderBoardPageState extends State<LeaderBoardPage> {
   final _friendService = FriendService();
   final _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  final _firestore = FirebaseFirestore.instance;
 
-  final List<Map<String, dynamic>> leaderboardData = const [
-    {'rank': 1, 'name': 'Alice Johnson', 'score': 2850, 'avatar': '🥇'},
-    {'rank': 2, 'name': 'Bob Smith', 'score': 2720, 'avatar': '🥈'},
-    {'rank': 3, 'name': 'Carol Davis', 'score': 2580, 'avatar': '🥉'},
-    {'rank': 4, 'name': 'David Wilson', 'score': 2340, 'avatar': '👤'},
-    {'rank': 5, 'name': 'Emma Brown', 'score': 2190, 'avatar': '👤'},
-    {'rank': 6, 'name': 'Frank Miller', 'score': 2050, 'avatar': '👤'},
-    {'rank': 7, 'name': 'Grace Lee', 'score': 1920, 'avatar': '👤'},
-    {'rank': 8, 'name': 'Henry Chen', 'score': 1780, 'avatar': '👤'},
-    {'rank': 9, 'name': 'Ivy Martinez', 'score': 1650, 'avatar': '👤'},
-    {'rank': 10, 'name': 'Jack Taylor', 'score': 1520, 'avatar': '👤'},
-  ];
+  List<Map<String, dynamic>> leaderboardData = [];
 
-  Future<void> _addFriendDialog(BuildContext context) async {
-    final nameController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _loadLeaderboard();
+  }
 
-    final friendName = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Friend'),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(
-              labelText: 'Enter friend’s display name',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, nameController.text.trim()),
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
-    );
+  Future<void> _loadLeaderboard() async {
+    if (_currentUserId == null) return;
 
-    if (friendName == null || friendName.isEmpty) return;
+    try {
+      // 1️⃣ Get current user’s friends list
+      final userDoc =
+          await _firestore.collection('users').doc(_currentUserId).get();
+      final friends = List<String>.from(userDoc.data()?['friends'] ?? []);
+      friends.add(_currentUserId!); // include self
 
-    final firestore = FirebaseFirestore.instance;
-    final query = await firestore
-        .collection('users')
-        .where('displayName', isEqualTo: friendName)
-        .get();
+      if (friends.isEmpty) return;
 
-    if (query.docs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No user found with that name')),
-      );
-      return;
+      // 2️⃣ Fetch plants and analyses for these users
+      final plantsQuery = await _firestore
+          .collection('plants')
+          .where('userId',
+              whereIn: friends.length > 10 ? friends.sublist(0, 10) : friends)
+          .get();
+
+      final analysisQuery = await _firestore.collection('plant_analysis').get();
+
+      // 3️⃣ Build map of plantId → overallScore
+      final Map<String, double> plantScores = {};
+      for (var doc in analysisQuery.docs) {
+        final data = doc.data();
+        final plantId = data['plantId'];
+        final score = (data['overallScore'] ?? 0).toDouble();
+        if (plantId != null) plantScores[plantId] = score;
+      }
+
+      // 4️⃣ Group scores by userId
+      final Map<String, List<double>> userScores = {};
+      for (var plant in plantsQuery.docs) {
+        final data = plant.data();
+        final userId = data['userId'];
+        final plantId = plant.id;
+
+        final score = plantScores[plantId] ?? 0.0;
+        userScores.putIfAbsent(userId, () => []).add(score);
+      }
+
+      // 5️⃣ Calculate Flourish Score
+      final leaderboard = <Map<String, dynamic>>[];
+
+      for (var entry in userScores.entries) {
+        final userId = entry.key;
+        final scores = entry.value;
+
+        // Fetch the user's name
+        final userDoc = await _firestore.collection('users').doc(userId).get();
+        final name = userDoc.data()?['displayName'] ?? 'Unknown';
+
+        final plantCount = scores.length;
+        final avgScore =
+            plantCount > 0 ? scores.reduce((a, b) => a + b) / plantCount : 0.0;
+
+        // Weighted system: 70% quality (avg), 30% quantity
+        final flourishScore = ((avgScore * 0.7) + (plantCount * 0.3)) * 10;
+        final roundedScore = flourishScore.round();
+
+        // Update user points in Firestore
+        await _firestore.collection('users').doc(userId).set({
+          'points': roundedScore,
+        }, SetOptions(merge: true));
+
+        // Check if this user already exists in leaderboard
+        final existingIndex =
+            leaderboard.indexWhere((entry) => entry['name'] == name);
+
+        if (existingIndex != -1) {
+          // If user already exists, keep the higher score
+          final existingScore = int.parse(leaderboard[existingIndex]['score']);
+          if (roundedScore > existingScore) {
+            leaderboard[existingIndex]['score'] = roundedScore.toString();
+          }
+        } else {
+          leaderboard.add({
+            'name': name,
+            'score': roundedScore.toString(),
+            'avatar': '👤',
+          });
+        }
+      }
+
+      // 6️⃣ Sort by Flourish Score descending
+      leaderboard.sort((a, b) =>
+          double.parse(b['score']).compareTo(double.parse(a['score'])));
+
+      // 7️⃣ Assign ranks + medals
+      for (int i = 0; i < leaderboard.length; i++) {
+        leaderboard[i]['rank'] = i + 1;
+        leaderboard[i]['avatar'] = i == 0
+            ? '🥇'
+            : i == 1
+                ? '🥈'
+                : i == 2
+                    ? '🥉'
+                    : '👤';
+      }
+
+      setState(() {
+        leaderboardData = leaderboard;
+      });
+    } catch (e) {
+      debugPrint("❌ Error loading leaderboard: $e");
     }
-
-    final friendDoc = query.docs.first;
-    final friendId = friendDoc.id;
-
-    await _friendService.sendFriendRequest(_currentUserId!, friendId);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Friend request sent to $friendName!')),
-    );
   }
 
   @override
@@ -101,7 +151,7 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person),
-            tooltip: 'Add Friend',
+            tooltip: 'Friends',
             onPressed: () {
               Navigator.push(
                 context,
@@ -111,24 +161,25 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Top 3 podium & leaderboard list stay the same
-            _buildPodiumSection(),
-            SizedBox(height: 20.h),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
+      body: leaderboardData.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
               child: Column(
-                children: leaderboardData
-                    .skip(3)
-                    .map((entry) => _buildLeaderboardTile(entry))
-                    .toList(),
+                children: [
+                  if (leaderboardData.length >= 3) _buildPodiumSection(),
+                  SizedBox(height: 20.h),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Column(
+                      children: leaderboardData
+                          .skip(3)
+                          .map((entry) => _buildLeaderboardTile(entry))
+                          .toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -146,11 +197,13 @@ class _LeaderBoardPageState extends State<LeaderBoardPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _buildPodiumCard(leaderboardData[1], 2),
+          if (leaderboardData.length > 1)
+            _buildPodiumCard(leaderboardData[1], 2),
           SizedBox(width: 10.w),
           _buildPodiumCard(leaderboardData[0], 1),
           SizedBox(width: 10.w),
-          _buildPodiumCard(leaderboardData[2], 3),
+          if (leaderboardData.length > 2)
+            _buildPodiumCard(leaderboardData[2], 3),
         ],
       ),
     );

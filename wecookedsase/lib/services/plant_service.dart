@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../models/plant_model.dart';
+import 'user_service.dart';
 
 class PlantService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final String _collection = 'plants';
+  final UserService _userService = UserService(); // <-- add this line
 
   // Get all plants for a user
   Stream<List<Plant>> getUserPlants(String userId) {
@@ -15,11 +17,12 @@ class PlantService {
         .where('userId', isEqualTo: userId)
         .snapshots()
         .map((snapshot) {
-          // Sort in memory instead of requiring a composite index
-          final plants = snapshot.docs.map((doc) => Plant.fromFirestore(doc)).toList();
-          plants.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return plants;
-        });
+      // Sort in memory instead of requiring a composite index
+      final plants =
+          snapshot.docs.map((doc) => Plant.fromFirestore(doc)).toList();
+      plants.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return plants;
+    });
   }
 
   // Get all plants (for testing/admin)
@@ -28,19 +31,16 @@ class PlantService {
         .collection(_collection)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => 
-            snapshot.docs.map((doc) => Plant.fromFirestore(doc)).toList()
-        );
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Plant.fromFirestore(doc)).toList());
   }
 
   // Get a single plant by ID
   Future<Plant?> getPlant(String plantId) async {
     try {
-      DocumentSnapshot doc = await _firestore
-          .collection(_collection)
-          .doc(plantId)
-          .get();
-      
+      DocumentSnapshot doc =
+          await _firestore.collection(_collection).doc(plantId).get();
+
       if (doc.exists) {
         return Plant.fromFirestore(doc);
       }
@@ -54,15 +54,23 @@ class PlantService {
   // Add a new plant
   Future<String?> addPlant(Plant plant, String userId) async {
     try {
-      DocumentReference docRef = await _firestore
-          .collection(_collection)
-          .add({
-            ...plant.toFirestore(),
-            'userId': userId,
-          });
+      print("🌱 Adding new plant for user $userId...");
+
+      DocumentReference docRef = await _firestore.collection(_collection).add({
+        ...plant.toFirestore(),
+        'userId': userId,
+      });
+
+      print("✅ Plant added successfully with ID: ${docRef.id}");
+
+      // Now update the user's plant count
+      await _userService.updatePlantCount(userId);
+
+      print("📊 User $userId plant count updated after adding plant.");
+
       return docRef.id;
     } catch (e) {
-      debugPrint('Error adding plant: $e');
+      print('❌ Error adding plant: $e');
       return null;
     }
   }
@@ -71,14 +79,11 @@ class PlantService {
   Future<bool> updatePlant(Plant plant) async {
     try {
       if (plant.id == null) return false;
-      
-      await _firestore
-          .collection(_collection)
-          .doc(plant.id!)
-          .update({
-            ...plant.toFirestore(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+
+      await _firestore.collection(_collection).doc(plant.id!).update({
+        ...plant.toFirestore(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       return true;
     } catch (e) {
       debugPrint('Error updating plant: $e');
@@ -89,14 +94,11 @@ class PlantService {
   // Water a plant (updates water level and last watered time)
   Future<bool> waterPlant(String plantId) async {
     try {
-      await _firestore
-          .collection(_collection)
-          .doc(plantId)
-          .update({
-            'waterLevel': 1.0,
-            'lastWatered': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+      await _firestore.collection(_collection).doc(plantId).update({
+        'waterLevel': 1.0,
+        'lastWatered': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       return true;
     } catch (e) {
       debugPrint('Error watering plant: $e');
@@ -107,29 +109,24 @@ class PlantService {
   // Add XP to a plant
   Future<bool> addXP(String plantId, int xpToAdd) async {
     try {
-      DocumentSnapshot doc = await _firestore
-          .collection(_collection)
-          .doc(plantId)
-          .get();
-      
+      DocumentSnapshot doc =
+          await _firestore.collection(_collection).doc(plantId).get();
+
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         int currentXP = data['xp'] ?? 0;
         int currentLevel = data['level'] ?? 1;
         int newXP = currentXP + xpToAdd;
-        
+
         // Simple level up logic (every 100 XP = 1 level)
         int newLevel = currentLevel + (newXP ~/ 100);
         newXP = newXP % 100;
-        
-        await _firestore
-            .collection(_collection)
-            .doc(plantId)
-            .update({
-              'xp': newXP,
-              'level': newLevel,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
+
+        await _firestore.collection(_collection).doc(plantId).update({
+          'xp': newXP,
+          'level': newLevel,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
         return true;
       }
       return false;
@@ -142,6 +139,7 @@ class PlantService {
   // Delete a plant
   Future<bool> deletePlant(String plantId) async {
     try {
+      await _firestore.collection(_collection).doc(plantId).delete();
       // First, get the plant document to retrieve the userId
       DocumentSnapshot plantDoc = await _firestore
           .collection(_collection)
@@ -232,7 +230,8 @@ class PlantService {
         waterLevel: 0.80,
         iconName: 'local_florist',
         colorHex: '#FF5722',
-        careInstructions: 'Water daily and ensure plenty of sunlight. Fertilize weekly.',
+        careInstructions:
+            'Water daily and ensure plenty of sunlight. Fertilize weekly.',
       ),
       Plant(
         name: 'Basil',

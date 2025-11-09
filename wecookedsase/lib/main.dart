@@ -106,14 +106,14 @@ class _MainNavigationState extends State<MainNavigation> {
 
   void _onCameraButtonPressed(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user == null) {
       // User is not signed in, show login screen
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    } 
+    }
   }
 
   @override
