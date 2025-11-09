@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plant Analyzer</title>
+    <title>Plant Growth Stage Detector</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 50px auto;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             min-height: 100vh;
         }
         .container {
@@ -154,7 +154,7 @@
 
             try {
                 // Send to Flask API
-                const response = await fetch('http://localhost:5000/analyze', {
+                const response = await fetch('http://localhost:5000/analyze-dual-model', {
                     method: 'POST',
                     body: formData
                 });
