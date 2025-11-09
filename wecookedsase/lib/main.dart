@@ -105,7 +105,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   void _onCameraButtonPressed(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user == null) {
       // User is not signed in, show login screen
       Navigator.push(
@@ -245,20 +245,25 @@ class _HomeScreenState extends State<HomeScreen> {
     int streakCount = 5; //tmp variable for streak count
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Flourish",
-          style: GoogleFonts.poppins(
-            fontSize: 24.sp,
-            fontWeight: FontWeight.bold,
+        automaticallyImplyLeading: false,
+        toolbarHeight: 90, // slightly taller for visual balance
+        backgroundColor: Colors.deepPurple,
+        title: Center(
+          child: Padding(
+            padding: const EdgeInsets.only(
+                bottom: 5), // adjust this up/down if needed
+            child: Image.asset(
+              'assets/flourish.png',
+              height: 50, // tweak this for your preferred size
+              fit: BoxFit.contain,
+            ),
           ),
         ),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           // Add Friend button (top right)
           IconButton(
             icon: const Icon(Icons.person_add_alt_1),
+            color: Colors.white,
             tooltip: 'Add Friend',
             onPressed: () async {
               final nameController = TextEditingController();
@@ -318,6 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Existing add button for sample plants
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
+            color: Colors.white,
             onPressed: () async {
               final scaffoldMessenger = ScaffoldMessenger.of(context);
               await _plantService.createSamplePlants(_userId!);

@@ -1,7 +1,7 @@
 name: garden_vision
 description: Simple camera demo
 publish_to: "none"
-version: 1.0.0+1  # build name (1.0.0) + build number (1)
+version: 1.0.0+1 # build name (1.0.0) + build number (1)
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -13,7 +13,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  
+
   # UI Libraries
   velocity_x: ^4.1.2
   flutter_screenutil: ^5.9.3
@@ -35,3 +35,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/flourish.png
