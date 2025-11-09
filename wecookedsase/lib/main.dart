@@ -5,11 +5,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:forui/forui.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'profile.dart';
 import 'pages/plants_page.dart';
 import 'services/plant_service.dart';
 import 'models/plant_model.dart';
+import 'login.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +21,7 @@ void main() async {
   runApp(const MyApp());
 }
 
+// Root widget that checks authentication state
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -41,8 +44,38 @@ class MyApp extends StatelessWidget {
               ThemeData.light().textTheme,
             ),
           ),
-          home: const MainNavigation(),
+          home: const AuthWrapper(),
         );
+      },
+    );
+  }
+}
+
+// Wrapper to check if user is logged in
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Show loading while checking auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // If user is logged in, show main navigation
+        if (snapshot.hasData && snapshot.data != null) {
+          return const MainNavigation();
+        }
+
+        // If user is not logged in, show login screen
+        return const LoginScreen();
       },
     );
   }
@@ -174,10 +207,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final PlantService _plantService = PlantService();
-  final String _userId = 'demo_user'; // Replace with actual user ID from authentication
+  
+  // Get current user ID from Firebase Auth
+  String? get _userId => FirebaseAuth.instance.currentUser?.uid;
 
   @override
   Widget build(BuildContext context) {
+    // If user is not logged in, show error
+    if (_userId == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Please log in to view your plants'),
+        ),
+      );
+    }
+    
     int streakCount = 5; //tmp variable for streak count
     return Scaffold(
       appBar: AppBar(
@@ -197,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.add_circle_outline),
             onPressed: () async {
               final scaffoldMessenger = ScaffoldMessenger.of(context);
-              await _plantService.createSamplePlants(_userId);
+              await _plantService.createSamplePlants(_userId!);
               scaffoldMessenger.showSnackBar(
                 const SnackBar(content: Text('Sample plants created!')),
               );
@@ -254,14 +298,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    "Real-time from Firebase",
-                    style: GoogleFonts.poppins(
-                      fontSize: 10.sp,
-                      color: Colors.grey,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -271,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(
               height: 160.h,
               child: StreamBuilder<List<Plant>>(
-                stream: _plantService.getUserPlants(_userId),
+                stream: _plantService.getUserPlants(_userId!),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -365,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           description: 'A newly added plant',
                           colorHex: '#2196F3',
                         ),
-                        _userId,
+                        _userId!,
                       );
                     },
                   ),
