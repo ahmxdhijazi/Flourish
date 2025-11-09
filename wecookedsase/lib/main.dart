@@ -123,14 +123,14 @@ class _MainNavigationState extends State<MainNavigation> {
 
   void _onCameraButtonPressed(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-
+    
     if (user == null) {
       // User is not signed in, show login screen
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    }
+    } 
   }
 
   @override
@@ -376,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // StreamBuilder to fetch plants from Firebase
             SizedBox(
-              height: 180.h,
+              height: 160.h,
               child: StreamBuilder<List<Plant>>(
                 // --- FIX: Use the guaranteed non-null widget.userId ---
                 stream: _plantService.getUserPlants(widget.userId!),
@@ -506,7 +506,6 @@ class _HomeScreenState extends State<HomeScreen> {
               plantSunlight: plant.sunlight,
               plantLastWatered: plant.lastWatered,
               plantCareInstructions: plant.careInstructions,
-              latestImageUrl: plant.latestImageUrl,
               plantCreatedAt: plant.createdAt,
               plantUpdatedAt: plant.updatedAt,
             ),
@@ -514,38 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
       child: VStack([
-        // Show plant image if available, otherwise show icon
-        plant.latestImageUrl != null && plant.latestImageUrl!.isNotEmpty
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8.r),
-                child: Image.network(
-                  plant.latestImageUrl!,
-                  width: 80.sp,
-                  height: 80.sp,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(Icons.local_florist, size: 50.sp, color: Colors.white);
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return SizedBox(
-                      width: 50.sp,
-                      height: 50.sp,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              )
-            : Icon(Icons.local_florist, size: 50.sp, color: Colors.white),
+        Icon(Icons.local_florist, size: 50.sp, color: Colors.white),
         10.h.heightBox,
         Text(
           plant.name,
@@ -573,8 +541,8 @@ class _HomeScreenState extends State<HomeScreen> {
           .box
           .color(color)
           .roundedLg
-          .width(160.w)
-          .height(160.h)
+          .width(140.w)
+          .height(140.h)
           .shadowMd
           .make()
           .pOnly(right: 12.w),
