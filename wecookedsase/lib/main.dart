@@ -112,13 +112,7 @@ class _MainNavigationState extends State<MainNavigation> {
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    } else {
-      // User is signed in, open camera
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const CameraScreen()),
-      );
-    }
+    } 
   }
 
   @override

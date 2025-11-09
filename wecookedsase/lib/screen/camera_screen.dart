@@ -55,7 +55,11 @@ class _CameraScreenState extends State<CameraScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => DisplayPictureScreen(imagePath: image.path),
+          builder: (context) => DisplayPictureScreen(
+            imagePath: image.path,
+            plantId: widget.plantId,
+            plantName: widget.plantName,
+          ),
         ),
       );
     } catch (e) {
@@ -100,7 +104,15 @@ class _CameraScreenState extends State<CameraScreen> {
 
 class DisplayPictureScreen extends StatefulWidget {
   final String imagePath;
-  const DisplayPictureScreen({super.key, required this.imagePath});
+  final String? plantId;
+  final String? plantName;
+  
+  const DisplayPictureScreen({
+    super.key,
+    required this.imagePath,
+    this.plantId,
+    this.plantName,
+  });
 
   @override
   State<DisplayPictureScreen> createState() => _DisplayPictureScreenState();
@@ -132,7 +144,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
       // Create reference to Firebase Storage location
       final storageRef = FirebaseStorage.instance
           .ref()
-          .child('user_plants/${user.uid}/tmp/$fileName');
+          .child('user_plants/${user.uid}/${widget.plantId}/$fileName');
 
       // Upload the file
       final uploadTask = await storageRef.putFile(File(widget.imagePath));
