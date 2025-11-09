@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:intl/intl.dart';
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -21,6 +22,7 @@ class UserService {
       profileImageUrl = await storageRef.getDownloadURL();
     }
     
+    final String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now())
     // Create user profile document
     await _firestore.collection('users').doc(userId).set({
       'displayName': displayName,
@@ -29,6 +31,8 @@ class UserService {
       'plants': 0,
       'daysActive': 0,
       'favorites': [],
+      'streakCount': 1,
+      'lastLoginDate': todayStr,
     });
 
     // Update Firebase Auth user profile

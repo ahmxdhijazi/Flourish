@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'services/streak_service.dart';
 
 class Auth {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final _streakService = StreakService();
   
   User? get currentUser => _firebaseAuth.currentUser;
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
@@ -38,6 +40,9 @@ class Auth {
           password: password,
         );
         debugPrint('Sign in successful for user: $email');
+        // Check and update login streak after successful sign-in
+        await _streakService.checkLoginStreak();
+        debugPrint('Login streak checked/updated for user: $email');
       } on FirebaseAuthException catch (e) {
         debugPrint('Firebase Auth Exception during sign in:');
         debugPrint('Code: ${e.code}');
@@ -74,6 +79,8 @@ class Auth {
       );
       
       debugPrint('User created successfully with UID: ${userCredential.user?.uid}');
+      //await _streakService.checkLoginStreak();
+      debugPrint('Login streak initialized for new user: $email');
       
       if (userCredential.user == null) {
         throw Exception('User creation successful but user is null');
