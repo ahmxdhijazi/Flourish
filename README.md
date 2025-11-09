@@ -25,22 +25,22 @@ Flourish is a social gardening app that helps you track, share, and celebrate yo
 
 ### Installation
 
-1. Clone the repository
+# 1. Clone the repository
 ```bash
 git clone https://github.com/ahmxdhijazi/WeCooked-SASE2025.git
 cd WeCooked-SASE2025/wecookedsase
 ```
 
-2. Install dependencies
+# 2. Install dependencies
 ```bash
 flutter pub get
 ```
-3. Run backend server
+# 3. Set up the backend server
 ```bash
-cd WeCooked-SASE2025/wecookedapi
+cd WeCooked-SASE2025/wecooked_api
 ```
 
-4. Set up a Python virtual environment
+# 4. Install and initialize Python virtual environment
 
 ## Windows
 ```bash
@@ -52,7 +52,7 @@ python -m venv venv
 python3 -m venv venv
 ```
 
-5. Activate the virtual environment and install requirements
+# 5. Activate the virtual environment and install requirements
 
 ## Windows
 ```bash
@@ -64,12 +64,12 @@ venv/Scripts/Activate && pip install -r requirements.txt
 source venv/bin/activate && pip install -r requirements.txt
 ```
 
-6. Run the backend
+# 6. Run the backend
 ```bash
 python app.py
 ```
 
-8. Run the app
+# 7. Run the app
 ```bash
 flutter run
 ```
