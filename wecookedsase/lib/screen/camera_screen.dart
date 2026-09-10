@@ -180,15 +180,15 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
     });
 
     try {
-      // Backend addresses - switch baseUrl value to test different options
-      const String backendIP1 = '192.168.0.158:5000'; // Network IP (current machine)
-      const String backendIP2 = '167.96.170.255:5000'; // Alternative IP  
-      const String localhost = '127.0.0.1:5000'; // Loopback (may not work with iOS simulator)
-      
-      // iOS simulator can't always reach 127.0.0.1, use network IP instead
-      String baseUrl = backendIP2; // <-- Using network IP for iOS simulator
-      if (Platform.isAndroid) {
-        baseUrl = '10.0.2.2:5000'; // Android emulator
+      // Backend host. Provide your own at build/run time with:
+      //   flutter run --dart-define=BACKEND_HOST=<host:port>
+      // Do not commit machine-specific or public IP addresses here.
+      const String backendHost =
+          String.fromEnvironment('BACKEND_HOST', defaultValue: 'localhost:5000');
+
+      String baseUrl = backendHost;
+      if (Platform.isAndroid && backendHost == 'localhost:5000') {
+        baseUrl = '10.0.2.2:5000'; // Android emulator -> host loopback
       }
       
       final apiUrl = 'http://$baseUrl/analyze-dual-model';

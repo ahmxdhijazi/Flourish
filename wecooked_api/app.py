@@ -14,6 +14,13 @@ from flask_cors import CORS
 #Import the Roboflow library
 from inference_sdk import InferenceHTTPClient
 
+# Load environment variables from a local .env file if python-dotenv is available.
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 # Configuration
 logging.basicConfig(level=logging.INFO)
@@ -29,10 +36,18 @@ WORKFLOW_2_ID = "detect-and-classify-2"  # Second workflow (Detect and Classify 
 WORKSPACE_NAME = "wecooked2026"
 
 # 2. Connect to your workflow
-# This is your secret key. Keep it safe!
+# The API key is read from the environment - never hard-code or commit it.
+# Set ROBOFLOW_API_KEY in a local .env file (see .env.example) or export it.
+ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
+if not ROBOFLOW_API_KEY:
+    raise RuntimeError(
+        "ROBOFLOW_API_KEY is not set. Copy .env.example to .env and add your key, "
+        "or export ROBOFLOW_API_KEY before starting the server."
+    )
+
 client = InferenceHTTPClient(
-    api_url="https://serverless.roboflow.com",
-    api_key="LaBWh5S4iE3MK8jxMqfY"
+    api_url=os.getenv("ROBOFLOW_API_URL", "https://serverless.roboflow.com"),
+    api_key=ROBOFLOW_API_KEY,
 )
 
 # 3. Create the Flask app (your "server")
@@ -253,4 +268,10 @@ def analyze_dual_model():
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     port = int(os.getenv("PORT", 5000))
-    app.run(debug=True, host = '0.0.0.0', port=port)
+    # Debug mode exposes the Werkzeug interactive debugger (arbitrary code
+    # execution) - keep it off unless explicitly enabled for local dev.
+    debug = os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true", "yes")
+    # Bind to loopback by default. Set HOST=0.0.0.0 to reach it from a phone /
+    # emulator on your LAN, and only do that on a trusted network.
+    host = os.getenv("HOST", "127.0.0.1")
+    app.run(debug=debug, host=host, port=port)
