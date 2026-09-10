@@ -12,7 +12,15 @@ Ignore compiled Python files
 
 Ignore the Python cache folder
 
-pycache/
+__pycache__/
+
+--- Secrets / Environment ---
+
+Never commit real credentials (Roboflow API key, etc.)
+
+.env
+.env.*
+!.env.example
 
 --- Temporary Uploads ---
 
